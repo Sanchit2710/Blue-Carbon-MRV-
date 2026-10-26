@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { BoundaryMap } from "@/components/BoundaryMap";
 import { EvidenceTable, type EvidenceRow } from "@/components/EvidenceTable";
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
 import { parseBoundary } from "@/lib/evidence/geo";
@@ -12,7 +12,7 @@ import { reviewProject, startReview } from "../../actions";
 
 export default async function ReviewPage({ params }: PageProps<"/admin/projects/[id]">) {
   const { id } = await params;
-  const p = await requireRole("admin");
+  await requireRole("admin");
   const supabase = await createClient();
   const { data: project } = await supabase.from("projects").select("*, organizations(name, contact_email, region)").eq("id", id).maybeSingle();
   if (!project) notFound();
@@ -33,7 +33,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
   const reviewable = project.status === "submitted" || project.status === "under_review";
 
   return (
-    <RoleShell title={project.name} who={p.email} role={p.role}>
+    <Page title={project.name}>
 
       <div className="space-y-8">
         <section className="rounded-xl border border-border bg-white p-6">
@@ -90,6 +90,6 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
           </section>
         )}
       </div>
-    </RoleShell>
+    </Page>
   );
 }

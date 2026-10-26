@@ -121,8 +121,8 @@ export function EvidenceCapture({ projectId }: { projectId: string }) {
         </AnimatePresence>
 
         <div aria-live="polite" className="mt-4 empty:mt-0">
-          {state.error && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</p>}
-          {state.notice && <p className="rounded-lg border border-teal-200 bg-accent px-4 py-3 text-sm text-mangrove">{state.notice}</p>}
+          {state.error && <p className="animate-in fade-in slide-in-from-top-1 duration-200 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 motion-reduce:animate-none">{state.error}</p>}
+          {state.notice && <p className="animate-in fade-in slide-in-from-top-1 duration-200 rounded-lg border border-teal-200 bg-accent px-4 py-3 text-sm text-mangrove motion-reduce:animate-none">{state.notice}</p>}
         </div>
       </form>
     </MotionConfig>

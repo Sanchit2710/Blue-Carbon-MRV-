@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { EvidenceCapture } from "@/components/EvidenceCapture";
 import { EvidenceTable } from "@/components/EvidenceTable";
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
 import { signEvidence } from "@/lib/evidence/sign";
@@ -14,7 +14,7 @@ const decisionStatus = (d: string) => (d === "approve" ? "approved" : d === "rej
 
 export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[id]">) {
   const { id } = await params;
-  const p = await requireRole("ngo");
+  await requireRole("ngo");
   const supabase = await createClient();
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
   if (!project) notFound();
@@ -28,7 +28,7 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
   const editable = project.status === "draft" || project.status === "requires_more_evidence";
 
   return (
-    <RoleShell title={project.name} who={p.email} role={p.role}>
+    <Page title={project.name}>
       <div className="space-y-12">
         <section className="flex flex-wrap items-start justify-between gap-6 rounded-xl border border-border bg-white p-6">
           <div className="max-w-[60ch] space-y-3">
@@ -94,6 +94,6 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
           )}
         </section>
       </div>
-    </RoleShell>
+    </Page>
   );
 }
