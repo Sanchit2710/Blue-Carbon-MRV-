@@ -41,3 +41,29 @@ export function distanceM(lat1: number, lng1: number, lat2: number, lng2: number
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) ** 2;
   return 2 * 6371000 * Math.asin(Math.sqrt(a));
 }
+
+// Area of the outer ring minus holes, in hectares. Local equirectangular projection around the
+// ring's mean latitude: accurate to well under 1% for sites of a few km, which is what we register.
+export function polygonAreaHa(poly: Polygon) {
+  const ringArea = (ring: Ring) => {
+    const lat0 = (ring.reduce((s, p) => s + p[1], 0) / ring.length) * (Math.PI / 180);
+    const kx = 111_320 * Math.cos(lat0), ky = 110_574;
+    let a = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += ring[j][0] * kx * (ring[i][1] * ky) - ring[i][0] * kx * (ring[j][1] * ky);
+    return Math.abs(a) / 2;
+  };
+  const [outer, ...holes] = poly.coordinates;
+  return (ringArea(outer) - holes.reduce((s, h) => s + ringArea(h), 0)) / 10_000;
+}
+
+// Mean of the outer ring's distinct vertices: a good "go to" point for small, compact sites.
+export function centroid(poly: Polygon) {
+  const ring = poly.coordinates[0].slice(0, -1);
+  return { lat: ring.reduce((s, p) => s + p[1], 0) / ring.length, lng: ring.reduce((s, p) => s + p[0], 0) / ring.length };
+}
+
+export function bounds(poly: Polygon) {
+  const ring = poly.coordinates[0];
+  const lats = ring.map((p) => p[1]), lngs = ring.map((p) => p[0]);
+  return { south: Math.min(...lats), north: Math.max(...lats), west: Math.min(...lngs), east: Math.max(...lngs) };
+}

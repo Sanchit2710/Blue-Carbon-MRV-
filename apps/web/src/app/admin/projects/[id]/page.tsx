@@ -63,7 +63,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
           <p className="mt-2 text-xs text-muted-foreground">Hints only. EXIF/GPS can be absent or forged, a hash shows file consistency not site authenticity, and similarity is a heuristic. Satellite/NDVI analysis is not available yet. Approval does not issue credits or fix a credit quantity.</p>
         </section>
 
-        {boundary?.ok && <section><h2 className="mb-2 text-lg font-semibold">Boundary</h2><BoundaryMap polygon={boundary.polygon} points={points} /></section>}
+        {boundary?.ok && <section><h2 className="mb-4 text-2xl font-semibold text-mangrove">Site boundary</h2><BoundaryMap polygon={boundary.polygon} points={points} declaredHa={Number(project.area_hectares)} /></section>}
 
         <section><h2 className="mb-2 text-lg font-semibold">Evidence</h2><EvidenceTable rows={rows} /><p className="mt-2 text-sm text-muted-foreground">Links expire after 10 minutes. “Download original” gives the exact uploaded file, so its SHA-256 matches the one shown.</p></section>
 

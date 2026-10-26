@@ -59,7 +59,7 @@ export default async function ProjectDetails({ params }: PageProps<"/projects/[i
               <p className="max-w-[64ch] text-muted-foreground">{responsible} is responsible for ten years of monitoring, from {project.stewardship_start} to {project.stewardship_end}, with annual reports checked by an independent verifier. Buying credits doesn’t move that responsibility to the buyer.</p>
               {project.species && <p className="mt-2 text-muted-foreground">Species planted: {project.species}.</p>}
             </section>
-            {poly?.ok && <section><h2 className="mb-3 text-2xl font-semibold text-mangrove">Site boundary</h2><BoundaryMap polygon={poly.polygon} points={[]} /></section>}
+            {poly?.ok && <section><h2 className="mb-3 text-2xl font-semibold text-mangrove">Site boundary</h2><BoundaryMap polygon={poly.polygon} points={[]} declaredHa={Number(project.area_hectares)} /></section>}
           </div>
 
           <aside className="space-y-6">
