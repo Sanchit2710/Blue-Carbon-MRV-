@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { submitMaintenance, submitProject } from "../../actions";
 
 const ecosystemName: Record<string, string> = { mangrove: "Mangrove", seagrass: "Seagrass", salt_marsh: "Salt marsh", other: "Other coastal wetland" };
+const reportWindow = () => new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10);
 const decisionStatus = (d: string) => (d === "approve" ? "approved" : d === "reject" ? "rejected" : "requires_more_evidence");
 
 export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[id]">) {
@@ -28,6 +29,7 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
   ]);
   const rows = await signEvidence(supabase, evidence ?? []);
   const editable = project.status === "draft" || project.status === "requires_more_evidence";
+  const openUntil = reportWindow(); // reports open for submission 90 days before they're due
 
   return (
     <Page title={project.name}>
@@ -43,7 +45,7 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
             <dt className="text-muted-foreground">Area</dt><dd className="tabular">{project.area_hectares} ha</dd>
             <dt className="text-muted-foreground">Planted</dt><dd className="tabular">{project.planting_date}</dd>
             <dt className="text-muted-foreground">Stewardship</dt><dd className="tabular">{project.stewardship_start} to {project.stewardship_end}</dd>
-            <dt className="text-muted-foreground">Responsible</dt><dd>{project.stewardship_responsible}</dd>
+            <dt className="text-muted-foreground">Responsible</dt><dd>{!project.stewardship_responsible || project.stewardship_responsible === "registering organization" ? p.org?.name : project.stewardship_responsible}</dd>
           </dl>
         </section>
 
@@ -94,7 +96,8 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
                 <div className="flex flex-wrap items-center gap-3"><span className="font-medium">Year {i + 1}</span><span className="tabular text-sm text-muted-foreground">due {m.due_date}</span><StatusBadge status={m.status} /></div>
                 {m.notes && <p className="mt-2">{m.notes}</p>}
                 {m.review_notes && <p className="mt-1 text-muted-foreground">Verifier: {m.review_notes}</p>}
-                {(m.status === "scheduled" || m.status === "missed") && (
+                {m.status === "scheduled" && m.due_date > openUntil && <p className="mt-1 text-sm text-muted-foreground">Opens for your report 90 days before it’s due.</p>}
+                {(m.status === "missed" || (m.status === "scheduled" && m.due_date <= openUntil)) && (
                   <ActionForm action={submitMaintenance} submitLabel="Submit report" pendingLabel="Submitting…" className="mt-4 space-y-3">
                     <input type="hidden" name="report_id" value={m.id} /><input type="hidden" name="project_id" value={id} />
                     <label className="block space-y-2 text-sm font-medium">Site condition

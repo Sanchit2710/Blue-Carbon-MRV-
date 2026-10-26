@@ -55,7 +55,7 @@ export default async function CompanyPage() {
     <Page title={p.org.name} lead="Credits you hold, what you bought, and what you retired."
       actions={hasMarket ? <Button asChild><Link href="/marketplace">Browse the marketplace</Link></Button> : undefined}>
       <div className="space-y-12">
-        <WalletLinkCard orgId={p.org.id} wallet={wallet} locked={false} purpose="buy" />
+        <WalletLinkCard orgId={p.org.id} wallet={wallet} locked={false} purpose="buy" demo={p.org.is_demo} />
 
         <section>
           <h2 className="mb-4 text-2xl font-semibold text-mangrove">Credits you hold</h2>
