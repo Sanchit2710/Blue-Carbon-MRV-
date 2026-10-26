@@ -3,6 +3,7 @@ import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { EvidenceCapture } from "@/components/EvidenceCapture";
 import { EvidenceTable } from "@/components/EvidenceTable";
 import { CreditsList } from "@/components/chain/CreditsList";
+import { NgoMarket } from "@/components/chain/NgoMarket";
 import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
@@ -15,7 +16,7 @@ const decisionStatus = (d: string) => (d === "approve" ? "approved" : d === "rej
 
 export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[id]">) {
   const { id } = await params;
-  await requireRole("ngo");
+  const p = await requireRole("ngo");
   const supabase = await createClient();
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
   if (!project) notFound();
@@ -78,7 +79,10 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
         {project.status === "approved" && (
           <section>
             <h2 className="mb-4 text-2xl font-semibold text-mangrove">Credits</h2>
-            <CreditsList projectId={id} />
+            <div className="space-y-6">
+              <CreditsList projectId={id} />
+              <NgoMarket projectId={id} wallet={p.org?.wallet_address ?? null} />
+            </div>
           </section>
         )}
 
