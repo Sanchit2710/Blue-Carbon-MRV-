@@ -7,7 +7,7 @@ export type EvidenceRow = {
   gps_lat: number | null; gps_lng: number | null; captured_at: string | null; flags: unknown;
   width?: number | null; height?: number | null;
   device_lat?: number | null; device_lng?: number | null; device_accuracy_m?: number | null;
-  url?: string; downloadUrl?: string;
+  url?: string; downloadUrl?: string; is_demo?: boolean;
 };
 
 const coord = (a: number, b: number) => `${a.toFixed(5)}, ${b.toFixed(5)}`;
@@ -28,6 +28,7 @@ export function EvidenceTable({ rows }: { rows: EvidenceRow[] }) {
             <div className="min-w-0 space-y-2.5 text-sm">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="font-medium text-foreground">{e.kind === "photo" ? "Photo" : "Document"}</span>
+                {e.is_demo && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900">Demonstration data</span>}
                 <span className="tabular text-muted-foreground">{e.captured_at ? `Taken ${new Date(e.captured_at).toISOString().slice(0, 16).replace("T", " ")} UTC` : "No capture time"}</span>
                 <span className="tabular text-muted-foreground">{e.width && e.height ? `${e.width} × ${e.height}px, ` : ""}{(e.size_bytes / 1024 / 1024).toFixed(1)} MB</span>
               </div>

@@ -1,4 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
+import { DemoBadge } from "@/components/DemoBadge";
+import { Spotlight } from "@/components/site/Spotlight";
+import { coverFor } from "@/lib/photos";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 export const instant = false;
 
 const ecosystems: Record<string, string> = { mangrove: "Mangrove", seagrass: "Seagrass", salt_marsh: "Salt marsh", other: "Coastal wetland" };
-type Row = { id: string; quantity_available: number; price_per_credit: number; credit_batches: { period_start: string; period_end: string; methodology: string; projects: { id: string; name: string; ecosystem: string; region: string; area_hectares: number; is_demo: boolean } } };
+type Row = { id: string; quantity_available: number; price_per_credit: number; is_demo: boolean; credit_batches: { period_start: string; period_end: string; methodology: string; issued_qty: number; projects: { id: string; name: string; ecosystem: string; region: string; area_hectares: number; is_demo: boolean; cover_url: string | null } } };
 
 export default async function Marketplace({ searchParams }: PageProps<"/marketplace">) {
   const sp = await searchParams;
@@ -16,7 +20,7 @@ export default async function Marketplace({ searchParams }: PageProps<"/marketpl
 
   const supabase = await createClient();
   const { data } = await supabase.from("marketplace_listings")
-    .select("id, quantity_available, price_per_credit, credit_batches!inner(period_start, period_end, methodology, projects!inner(id, name, ecosystem, region, area_hectares, is_demo))")
+    .select("id, quantity_available, price_per_credit, is_demo, credit_batches!inner(period_start, period_end, methodology, issued_qty, projects!inner(id, name, ecosystem, region, area_hectares, is_demo, cover_url))")
     .eq("active", true).gt("quantity_available", 0).order("price_per_credit");
   const rows = ((data ?? []) as unknown as Row[]).filter((r) => {
     const p = r.credit_batches.projects;
@@ -45,21 +49,33 @@ export default async function Marketplace({ searchParams }: PageProps<"/marketpl
             <p className="mt-1 text-muted-foreground">Listings appear when an NGO with approved, issued credits puts them up for sale.</p>
           </div>
         ) : (
-          <ul className="mt-8 divide-y divide-border overflow-hidden rounded-xl border border-border bg-white">
+          <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((r) => {
               const p = r.credit_batches.projects;
+              const share = Math.min(100, (Number(r.quantity_available) / Math.max(1, Number(r.credit_batches.issued_qty))) * 100);
               return (
                 <li key={r.id}>
-                  <Link href={`/projects/${p.id}`} className="grid gap-3 px-5 py-5 hover:bg-muted/60 sm:grid-cols-[1fr_auto] sm:items-center">
-                    <div>
-                      <p className="font-display text-xl font-semibold text-mangrove">{p.name}{p.is_demo && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-900">Demonstration data</span>}</p>
-                      <p className="text-muted-foreground">{ecosystems[p.ecosystem]} in {p.region}, {p.area_hectares} ha. Credited {r.credit_batches.period_start} to {r.credit_batches.period_end} under {r.credit_batches.methodology}.</p>
-                    </div>
-                    <div className="tabular sm:text-right">
-                      <p><span className="font-display text-2xl font-semibold">{Number(r.price_per_credit)}</span> <span className="text-muted-foreground">ETH per tCO2e</span></p>
-                      <p className="text-sm text-muted-foreground">{Number(r.quantity_available)} tCO2e available</p>
-                    </div>
-                  </Link>
+                  <Spotlight className="h-full rounded-2xl border border-border bg-white transition-colors hover:border-brackish">
+                    <Link href={`/projects/${p.id}`} className="flex h-full flex-col focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brackish">
+                      <div className="relative aspect-[16/10] overflow-hidden">
+                        <Image src={coverFor(p)} alt="" fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" quality={75} className="object-cover transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none" />
+                        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-mangrove">{ecosystems[p.ecosystem]}</span>
+                        {(p.is_demo || r.is_demo) && <span className="absolute right-3 top-3"><DemoBadge /></span>}
+                      </div>
+                      <div className="flex flex-1 flex-col p-5">
+                        <p className="font-display text-xl font-semibold leading-snug text-mangrove">{p.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{p.region}, {p.area_hectares} ha</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Credited {r.credit_batches.period_start} to {r.credit_batches.period_end}</p>
+                        <div className="mt-auto pt-5">
+                          <p className="tabular"><span className="font-display text-2xl font-semibold">{Number(r.price_per_credit)}</span> <span className="text-muted-foreground">ETH per tCO2e</span></p>
+                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${Number(r.quantity_available)} of ${Number(r.credit_batches.issued_qty)} tCO2e still available`}>
+                            <div className="h-full rounded-full bg-brackish" style={{ width: `${share}%` }} />
+                          </div>
+                          <p className="tabular mt-1.5 text-sm text-muted-foreground">{Number(r.quantity_available)} of {Number(r.credit_batches.issued_qty)} tCO2e available</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </Spotlight>
                 </li>
               );
             })}

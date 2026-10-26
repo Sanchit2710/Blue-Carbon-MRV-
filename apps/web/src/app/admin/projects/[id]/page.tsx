@@ -23,7 +23,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
   if (!project) notFound();
 
   const [{ data: evidence }, { data: boundaryRow }, { data: decisions }] = await Promise.all([
-    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, created_at").eq("project_id", id).order("created_at"),
+    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, is_demo, created_at").eq("project_id", id).order("created_at"),
     supabase.from("project_boundaries").select("geojson").eq("project_id", id).maybeSingle(),
     supabase.from("verification_decisions").select("id, decision, reason, created_at, profiles(full_name)").eq("project_id", id).order("created_at", { ascending: false }),
   ]);
