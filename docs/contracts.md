@@ -74,3 +74,11 @@ Deploy script `scripts/deploy.ts` reads `RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `CHAI
 - `pause` also freezes retirement and holder transfers.
 - Marketplace / purchase contract is out of scope (later phase). ERC-1155 `setApprovalForAll` is available for a future marketplace.
 - No gas optimisation or external audit.
+
+## Deployments
+
+| Network | Address | Admin / verifier |
+|---|---|---|
+| Sepolia (11155111) | [`0x9941E54386dA5bBb389Efdf482C175F0a620b031`](https://sepolia.etherscan.io/address/0x9941E54386dA5bBb389Efdf482C175F0a620b031) | `0x19b212Fc41790dCF8A8f1704928Aeda6c6495f8D` |
+
+Deployed 2026-10-26 with `npx hardhat run scripts/deploy.ts --network target`; roles checked with `REGISTRY_ADDRESS=… npx hardhat run scripts/verify-roles.ts --network target`. Details in `contracts/deployments/sepolia.json`. Source is not yet verified on Etherscan (needs an Etherscan API key).
