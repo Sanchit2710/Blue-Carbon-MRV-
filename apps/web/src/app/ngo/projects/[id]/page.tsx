@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
+import { EvidenceTable } from "@/components/EvidenceTable";
 import { RoleShell } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
@@ -42,21 +43,7 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
         <section>
           <h2 className="mb-2 text-lg font-semibold">Evidence</h2>
           <p className="mb-3 text-xs text-slate-500">Hashes prove file consistency only, not that a photo shows a genuine restoration site. GPS/EXIF can be missing or altered; flags are hints for the verifier, not verdicts. Storage is Supabase private storage — IPFS is not integrated.</p>
-          {!evidence?.length ? <p className="text-sm text-slate-600">No evidence uploaded.</p> : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-stone-100 text-xs uppercase text-slate-500"><tr><th className="p-2">Type</th><th className="p-2">SHA-256</th><th className="p-2">GPS</th><th className="p-2">Captured</th><th className="p-2">Flags</th></tr></thead>
-                <tbody>{evidence.map((e) => (
-                  <tr key={e.id} className="border-t border-slate-100">
-                    <td className="p-2">{e.kind}</td>
-                    <td className="p-2 font-mono text-xs" title={e.sha256}>{e.sha256.slice(0, 16)}…</td>
-                    <td className="p-2">{e.gps_lat != null ? `${e.gps_lat.toFixed(5)}, ${e.gps_lng?.toFixed(5)}` : "—"}</td>
-                    <td className="p-2">{e.captured_at ? new Date(e.captured_at).toISOString().slice(0, 10) : "—"}</td>
-                    <td className="p-2 text-xs text-amber-800">{(e.flags as string[]).join(", ") || "none"}</td>
-                  </tr>))}</tbody>
-              </table>
-            </div>
-          )}
+          <EvidenceTable rows={evidence ?? []} />
           <ActionForm action={uploadEvidence} submitLabel="Upload evidence" className="mt-4 max-w-lg space-y-3">
             <input type="hidden" name="project_id" value={id} />
             <input name="file" type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" className={fieldClass} />

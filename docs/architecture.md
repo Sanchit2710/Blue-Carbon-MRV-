@@ -10,7 +10,7 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 | DB schema + RLS (`supabase/migrations/0001_schema.sql`) | Implemented, smoke-tested locally |
 | NGO org + project registration, evidence upload (SHA-256, EXIF GPS/time, boundary check, dHash similarity, exact-duplicate flag), maintenance report submission | Implemented (Phase 2), SQL + unit tested; not exercised against live Supabase |
 | Evidence storage | Supabase private bucket `evidence`. IPFS NOT integrated |
-| Verifier workflow, audit logs, hash/EXIF/duplicate checks | Planned (Phase 3) |
+| Verifier queue, project review (start review / approve / reject / request more evidence), maintenance review + missed-deadline marking, audit log viewer | Implemented (Phase 3), SQL tested; not exercised against live Supabase |
 | Solidity contracts | Planned (Phase 4) |
 | Wallet, marketplace purchases, retirement | Planned (Phase 5) |
 | Satellite/NDVI, model-assisted review | Planned (Phase 6) |
@@ -29,9 +29,16 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 - Boundary entry is pasted GeoJSON (placeholder example prefilled); no map UI yet.
 - Perceptual hash is a 64-bit dHash, Hamming distance <= 8 counts as similar. Heuristic only.
 
+## Phase 3 notes
+- Decisions run through security-definer SQL functions (`start_review`, `review_project`, `review_maintenance`, `mark_missed_maintenance`): decision row, status change, monitoring schedule (on approve) and audit entry commit atomically.
+- Reviewers cannot review projects/reports of an organization they belong to (conflict-of-interest check). Rejected is final. A reason of 10+ characters is mandatory.
+- `log_audit()` only accepts a fixed set of NGO action names from non-admins, so decision entries cannot be forged.
+- Approval does not issue or quantify credits. `verification_reports` (geofence/satellite/model snapshots) is still unused; the review page computes check counts live from evidence flags.
+- Boundary view is a schematic SVG (no basemap). Evidence files open through 5-minute signed URLs.
+
 ## Tests
 - `cd apps/web && npm test` — boundary validation, point-in-polygon, Hamming distance.
-- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0002, then `rls_smoke.sql` and `phase2_smoke.sql` on a scratch Postgres.
+- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0003, then `rls_smoke.sql`, `phase2_smoke.sql` and `phase3_smoke.sql` on a scratch Postgres.
 
 ## Limits to keep in mind
 Blockchain records are auditable, not proof of physical restoration. A photo hash proves file consistency only. NDVI does not measure carbon. An ERC-20 is not automatically a legally recognized carbon credit.
