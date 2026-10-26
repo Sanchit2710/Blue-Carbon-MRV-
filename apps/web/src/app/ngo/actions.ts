@@ -1,0 +1,180 @@
+"use server";
+
+import exifr from "exifr";
+import sharp from "sharp";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import type { FormState } from "@/app/(auth)/actions";
+import { parseBoundary, pointInPolygon } from "@/lib/evidence/geo";
+import { dHash, sha256 } from "@/lib/evidence/hash";
+import { createClient } from "@/lib/supabase/server";
+
+const MAX_BYTES = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+async function currentUser() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return { supabase, user };
+}
+
+const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
+
+// ───────── organization ─────────
+const orgSchema = z.object({
+  name: z.string().trim().min(2),
+  type: z.enum(["ngo", "panchayat"]),
+  region: z.string().trim().min(2),
+  contact_email: z.string().email(),
+  contact_phone: z.preprocess(blank, z.string().trim().max(30).optional()),
+});
+
+export async function createOrganization(_: FormState, form: FormData): Promise<FormState> {
+  const parsed = orgSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { supabase, user } = await currentUser();
+  if (!user) redirect("/login");
+  const { data: org, error } = await supabase.from("organizations").insert({ ...parsed.data, created_by: user.id }).select("id").single();
+  if (error) return { error: error.message };
+  const { error: mErr } = await supabase.from("organization_members").insert({ organization_id: org.id, user_id: user.id });
+  if (mErr) return { error: mErr.message };
+  await supabase.rpc("log_audit", { p_action: "organization.create", p_entity: "organization", p_entity_id: org.id });
+  redirect("/ngo");
+}
+
+// ───────── project ─────────
+const projectSchema = z.object({
+  organization_id: z.string().uuid(),
+  name: z.string().trim().min(3),
+  description: z.preprocess(blank, z.string().trim().max(4000).optional()),
+  ecosystem: z.enum(["mangrove", "seagrass", "salt_marsh", "other"]),
+  region: z.string().trim().min(2),
+  species: z.preprocess(blank, z.string().trim().max(200).optional()),
+  area_hectares: z.coerce.number().positive().max(1_000_000),
+  planting_date: z.coerce.date(),
+  stewardship_start: z.coerce.date(),
+});
+const day = (d: Date) => d.toISOString().slice(0, 10);
+
+export async function createProject(_: FormState, form: FormData): Promise<FormState> {
+  const parsed = projectSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const boundary = parseBoundary(String(form.get("boundary") ?? ""));
+  if (!boundary.ok) return { error: boundary.error };
+  const { supabase, user } = await currentUser();
+  if (!user) redirect("/login");
+  const p = parsed.data;
+  const { data: id, error } = await supabase.rpc("create_project", {
+    p_org: p.organization_id, p_name: p.name, p_description: p.description ?? null, p_ecosystem: p.ecosystem,
+    p_region: p.region, p_species: p.species ?? null, p_area: p.area_hectares,
+    p_planting: day(p.planting_date), p_stewardship_start: day(p.stewardship_start), p_boundary: boundary.polygon,
+  });
+  if (error) return { error: error.message };
+  await supabase.rpc("log_audit", { p_action: "project.create", p_entity: "project", p_entity_id: id });
+  redirect(`/ngo/projects/${id}`);
+}
+
+// ───────── evidence ─────────
+export async function uploadEvidence(_: FormState, form: FormData): Promise<FormState> {
+  const projectId = z.string().uuid().safeParse(form.get("project_id"));
+  const file = form.get("file");
+  if (!projectId.success) return { error: "Invalid project" };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file" };
+  if (file.size > MAX_BYTES) return { error: "File exceeds 10 MB" };
+
+  const { supabase, user } = await currentUser();
+  if (!user) redirect("/login");
+  const { data: project } = await supabase.from("projects").select("id, planting_date").eq("id", projectId.data).single();
+  if (!project) return { error: "Project not found" };
+  const { data: bRow } = await supabase.from("project_boundaries").select("geojson").eq("project_id", project.id).single();
+  const boundary = bRow ? parseBoundary(JSON.stringify(bRow.geojson)) : null;
+
+  // Content sniffing: client-declared MIME is not trusted.
+  const buf = Buffer.from(await file.arrayBuffer());
+  const isPdf = buf.subarray(0, 5).toString() === "%PDF-";
+  let kind: "photo" | "document" = "document";
+  let mime = "application/pdf";
+  if (!isPdf) {
+    try {
+      const meta = await sharp(buf).metadata();
+      mime = `image/${meta.format}`;
+    } catch { return { error: "Unsupported file: upload a JPEG, PNG, WebP or PDF" }; }
+    if (!IMAGE_TYPES.includes(mime)) return { error: "Unsupported image type: use JPEG, PNG or WebP" };
+    kind = "photo";
+  }
+
+  const hash = sha256(buf);
+  const flags: string[] = [];
+  let lat: number | null = null, lng: number | null = null, capturedAt: Date | null = null;
+  let exifSummary: Record<string, unknown> | null = null, phash: string | null = null;
+
+  if (kind === "photo") {
+    // exifr: `pick` suppresses GPS, so read GPS separately. Time is raw text: EXIF has no timezone, treat as UTC (day-level checks only).
+    const [exif, gps] = await Promise.all([
+      exifr.parse(buf, { pick: ["Make", "Model", "Software", "DateTimeOriginal"], reviveValues: false }).catch(() => null),
+      exifr.gps(buf).catch(() => null),
+    ]);
+    phash = await dHash(buf);
+    if (typeof gps?.latitude === "number" && typeof gps?.longitude === "number") { lat = gps.latitude; lng = gps.longitude; }
+    const m = typeof exif?.DateTimeOriginal === "string" && /^(\d{4}):(\d\d):(\d\d)[ T](\d\d):(\d\d):(\d\d)/.exec(exif.DateTimeOriginal);
+    if (m) { const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])); if (!isNaN(+d)) capturedAt = d; }
+    exifSummary = exif ? { make: exif.Make, model: exif.Model, software: exif.Software } : null;
+
+    if (lat === null) flags.push("missing_gps");
+    else if (boundary?.ok && !pointInPolygon(lng!, lat, boundary.polygon)) flags.push("outside_boundary");
+    if (!capturedAt) flags.push("missing_capture_time");
+    else if (+capturedAt > Date.now() + 864e5 || capturedAt.getUTCFullYear() < 2000) flags.push("capture_time_implausible");
+    else if (project.planting_date && capturedAt < new Date(project.planting_date)) flags.push("captured_before_planting");
+
+    const { data: dup } = await supabase.rpc("evidence_duplicate_counts", { p_project: project.id, p_sha256: hash, p_phash: phash });
+    if (dup?.[0]?.exact_dupes > 0) flags.push("exact_duplicate");
+    if (dup?.[0]?.similar > 0) flags.push("similar_image");
+  }
+
+  const safeName = file.name.replace(/[^\w.-]+/g, "_").slice(-80);
+  const path = `${project.id}/${hash.slice(0, 16)}-${safeName}`;
+  const up = await supabase.storage.from("evidence").upload(path, buf, { contentType: mime, upsert: false });
+  if (up.error) return { error: up.error.message.includes("exists") ? "This exact file is already uploaded for this project" : up.error.message };
+
+  const { error } = await supabase.from("evidence_files").insert({
+    project_id: project.id, uploaded_by: user.id, kind, storage_path: path, sha256: hash, perceptual_hash: phash,
+    mime_type: mime, size_bytes: buf.length, exif: exifSummary, gps_lat: lat, gps_lng: lng,
+    captured_at: capturedAt?.toISOString() ?? null, flags,
+  });
+  if (error) {
+    await supabase.storage.from("evidence").remove([path]);
+    return { error: error.message };
+  }
+  await supabase.rpc("log_audit", { p_action: "evidence.upload", p_entity: "project", p_entity_id: project.id, p_detail: { sha256: hash, flags } });
+  revalidatePath(`/ngo/projects/${project.id}`);
+  return { notice: `Stored. SHA-256 ${hash.slice(0, 12)}…\n${flags.length ? "Flags for verifier: " + flags.join(", ") : "No automatic flags."}` };
+}
+
+// ───────── submit for review ─────────
+export async function submitProject(_: FormState, form: FormData): Promise<FormState> {
+  const id = z.string().uuid().safeParse(form.get("project_id"));
+  if (!id.success) return { error: "Invalid project" };
+  const { supabase } = await currentUser();
+  const { count } = await supabase.from("evidence_files").select("id", { count: "exact", head: true }).eq("project_id", id.data).eq("kind", "photo");
+  if (!count) return { error: "Upload at least one field photograph before submitting" };
+  const { data, error } = await supabase.from("projects").update({ status: "submitted" }).eq("id", id.data).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Project not found or not submittable" };
+  await supabase.rpc("log_audit", { p_action: "project.submit", p_entity: "project", p_entity_id: id.data });
+  revalidatePath(`/ngo/projects/${id.data}`);
+  return { notice: "Submitted for verification." };
+}
+
+// ───────── maintenance ─────────
+export async function submitMaintenance(_: FormState, form: FormData): Promise<FormState> {
+  const parsed = z.object({ report_id: z.string().uuid(), project_id: z.string().uuid(), notes: z.string().trim().min(10, "Describe the site condition (10+ characters)").max(4000) }).safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { supabase } = await currentUser();
+  const { data, error } = await supabase.from("maintenance_reports").update({ notes: parsed.data.notes }).eq("id", parsed.data.report_id).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Report not found" };
+  await supabase.rpc("log_audit", { p_action: "maintenance.submit", p_entity: "maintenance_report", p_entity_id: parsed.data.report_id });
+  revalidatePath(`/ngo/projects/${parsed.data.project_id}`);
+  return { notice: "Maintenance report submitted." };
+}
