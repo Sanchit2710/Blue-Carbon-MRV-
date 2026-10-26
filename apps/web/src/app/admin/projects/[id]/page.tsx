@@ -22,10 +22,11 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
   const { data: project } = await supabase.from("projects").select("*, organizations(name, contact_email, region, wallet_address)").eq("id", id).maybeSingle();
   if (!project) notFound();
 
-  const [{ data: evidence }, { data: boundaryRow }, { data: decisions }] = await Promise.all([
+  const [{ data: evidence }, { data: boundaryRow }, { data: decisions }, { data: lastBatch }] = await Promise.all([
     supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, is_demo, created_at").eq("project_id", id).order("created_at"),
     supabase.from("project_boundaries").select("geojson").eq("project_id", id).maybeSingle(),
     supabase.from("verification_decisions").select("id, decision, reason, created_at, profiles(full_name)").eq("project_id", id).order("created_at", { ascending: false }),
+    supabase.from("credit_batches").select("period_end").eq("project_id", id).order("period_end", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const rows: EvidenceRow[] = await signEvidence(supabase, evidence ?? []);
@@ -36,7 +37,8 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
     .flatMap((pt, i) => (pt ? [{ ...pt, flagged: (photos[i].flags as string[]).includes("outside_boundary") }] : []));
   const org = project.organizations as unknown as { name: string; contact_email: string | null; wallet_address: string | null } | null;
   const approval = decisions?.find((d) => d.decision === "approve");
-  const creditStart: string = project.planting_date ?? project.stewardship_start ?? today();
+  // Suggest the next free crediting period: the day after the latest batch, else from planting.
+  const creditStart: string = lastBatch ? new Date(Date.parse(lastBatch.period_end) + 864e5).toISOString().slice(0, 10) : project.planting_date ?? project.stewardship_start ?? today();
   const creditEnd = new Date(Date.parse(creditStart) + 365 * 864e5).toISOString().slice(0, 10);
   const reviewable = project.status === "submitted" || project.status === "under_review";
 

@@ -6,17 +6,18 @@ import { createClient } from "@/lib/supabase/server";
 export default async function AdminPage() {
   await requireRole("admin");
   const supabase = await createClient();
-  const [{ data: queue }, { count: approved }, { count: toReview }, { count: missed }] = await Promise.all([
+  const [{ data: queue }, { count: approved }, { count: toReview }, { count: missed }, { data: approvedList }] = await Promise.all([
     supabase.from("projects").select("id, name, status, ecosystem, region, area_hectares, updated_at, organizations(name)").in("status", ["submitted", "under_review"]).order("updated_at"),
     supabase.from("projects").select("id", { count: "exact", head: true }).eq("status", "approved"),
     supabase.from("maintenance_reports").select("id", { count: "exact", head: true }).eq("status", "submitted"),
     supabase.from("maintenance_reports").select("id", { count: "exact", head: true }).in("status", ["missed", "flagged"]),
+    supabase.from("projects").select("id, name, status, ecosystem, region, organizations(name)").eq("status", "approved").order("updated_at", { ascending: false }),
   ]);
   const strip = [
     { label: "Projects waiting", value: queue?.length ?? 0, href: "#queue" },
     { label: "Reports to review", value: toReview ?? 0, href: "/admin/maintenance" },
     { label: "Missed or flagged reports", value: missed ?? 0, href: "/admin/maintenance" },
-    { label: "Approved projects", value: approved ?? 0, href: "/marketplace" },
+    { label: "Approved projects", value: approved ?? 0, href: "#approved" },
   ];
   return (
     <Page title="Verifier dashboard" lead={queue?.length ? `${queue.length} project${queue.length === 1 ? "" : "s"} waiting, oldest first.` : "Nothing is waiting for review."}>
@@ -35,7 +36,14 @@ export default async function AdminPage() {
             extra={`${(q.organizations as unknown as { name: string } | null)?.name ?? "unknown organisation"}`} status={q.status} />)}
         </ul>
       )}
-      <p className="mt-8 text-sm text-muted-foreground">Credit issuance, transfer and retirement history will appear here once the ledger is connected.</p>
+      <h2 id="approved" className="mb-2 mt-12 text-2xl font-semibold text-mangrove">Approved projects</h2>
+      <p className="mb-4 text-muted-foreground">Open one to issue credits or check its monitoring.</p>
+      {!approvedList?.length ? <p className="text-muted-foreground">None yet.</p> : (
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white">
+          {approvedList.map((q) => <ProjectRow key={q.id} href={`/admin/projects/${q.id}`} name={q.name} ecosystem={q.ecosystem} region={q.region}
+            extra={(q.organizations as unknown as { name: string } | null)?.name ?? undefined} status={q.status} />)}
+        </ul>
+      )}
     </Page>
   );
 }

@@ -12,7 +12,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
-import { Wallet } from "ethers";
 import sharp from "sharp";
 import { dHash, sha256 } from "../src/lib/evidence/hash.ts";
 
@@ -95,11 +94,11 @@ async function seed() {
   }
   writeFileSync(".demo-accounts.local.json", JSON.stringify({ note: "DEMO accounts for local demonstrations only.", password, accounts: Object.fromEntries(Object.entries(accounts).map(([k, a]) => [k, { email: a.email, role: "admin" in a ? "verifier (admin)" : a.role }])) }, null, 2));
 
-  // ── organisations (fictional, marked Demo; wallets are random addresses with no keys kept) ──
-  const org = async (name: string, type: string, region: string, email: string, owner: string, wallet = true) => {
-    const o = must(await db.from("organizations").insert({ name, type, region, contact_email: email, created_by: owner, is_demo: true, wallet_address: wallet ? Wallet.createRandom().address : null }).select("id, wallet_address").single(), `org ${name}`);
+  // ── organisations (fictional, marked Demo). No wallet: link a real MetaMask test account for a live demo. ──
+  const org = async (name: string, type: string, region: string, email: string, owner: string) => {
+    const o = must(await db.from("organizations").insert({ name, type, region, contact_email: email, created_by: owner, is_demo: true }).select("id").single(), `org ${name}`);
     must(await db.from("organization_members").insert({ organization_id: o.id, user_id: owner }), "member");
-    return o as { id: string; wallet_address: string };
+    return o as { id: string };
   };
   const sundarbans = await org("Sundarbans Tidal Restoration Collective (Demo)", "ngo", "West Bengal", accounts.ngo1.email, ids.ngo1);
   const coromandel = await org("Coromandel Coast Panchayat Network (Demo)", "panchayat", "Tamil Nadu", accounts.ngo2.email, ids.ngo2);
