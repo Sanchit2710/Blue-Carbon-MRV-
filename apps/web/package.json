@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test src/lib/evidence/check.test.ts src/lib/chain/ids.test.ts",
-    "seed:demo": "node --env-file=.env.local scripts/seed-demo.ts",
-    "seed:demo:reset": "node --env-file=.env.local scripts/seed-demo.ts --reset"
+    "seed:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local scripts/seed-demo.ts",
+    "seed:demo:reset": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local scripts/seed-demo.ts --reset"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
