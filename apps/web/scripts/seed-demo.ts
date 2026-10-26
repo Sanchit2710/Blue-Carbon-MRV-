@@ -8,10 +8,10 @@
 //   node --env-file=.env.local scripts/seed-demo.ts --reset   # remove all demo data and demo accounts
 //
 // Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY. Demo account passwords are written to
-// .demo-accounts.local.json (git-ignored), never printed.
+// .demo-accounts.local.json (git-ignored), never printed, and reused on every later run (or set DEMO_PASSWORD).
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import sharp from "sharp";
 import { dHash, sha256 } from "../src/lib/evidence/hash.ts";
 
@@ -84,7 +84,9 @@ async function seed() {
   if (count) { console.log("Demo data already exists. Run with --reset first to recreate it."); return; }
 
   // ── accounts ──
-  const password = process.env.DEMO_PASSWORD || `Demo-${randomBytes(6).toString("hex")}`;
+  // Same password every run: DEMO_PASSWORD if set, else the one already saved, else a new random one.
+  const saved = existsSync(".demo-accounts.local.json") ? (JSON.parse(readFileSync(".demo-accounts.local.json", "utf8")).password as string | undefined) : undefined;
+  const password = process.env.DEMO_PASSWORD || saved || `Demo-${randomBytes(6).toString("hex")}`;
   const ids: Record<keyof typeof accounts, string> = {} as never;
   for (const [k, a] of Object.entries(accounts) as [keyof typeof accounts, (typeof accounts)[keyof typeof accounts]][]) {
     const { data, error } = await db.auth.admin.createUser({ email: a.email, password, email_confirm: true, user_metadata: { full_name: a.name, role: a.role } });
