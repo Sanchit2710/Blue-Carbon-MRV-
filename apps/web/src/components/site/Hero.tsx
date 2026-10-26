@@ -15,12 +15,12 @@ export function Hero() {
       </div>
       <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(to_top,rgba(14,34,54,0.92)_0%,rgba(14,34,54,0.55)_38%,rgba(14,34,54,0.15)_70%,rgba(14,34,54,0.35)_100%)]" />
 
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 px-4 py-5 sm:px-8">
         <Logo tone="light" />
-        <nav className="flex items-center gap-1 text-[15px]">
-          <Link href="/marketplace" className="rounded-md px-3 py-2 text-white/90 hover:bg-white/10 hover:text-white">Marketplace</Link>
-          <Link href="/login" className="rounded-md px-3 py-2 text-white/90 hover:bg-white/10 hover:text-white">Log in</Link>
-          <Button asChild variant="secondary" className="h-10 bg-white text-mangrove hover:bg-white/90"><Link href="/signup">Create account</Link></Button>
+        <nav className="flex items-center gap-0.5 text-[15px] sm:gap-1">
+          <Link href="/marketplace" className="whitespace-nowrap rounded-md px-2.5 py-2 text-white/90 hover:bg-white/10 hover:text-white">Marketplace</Link>
+          <Link href="/login" className="whitespace-nowrap rounded-md px-2.5 py-2 text-white/90 hover:bg-white/10 hover:text-white">Log in</Link>
+          <Button asChild variant="secondary" className="hidden h-10 bg-white text-mangrove hover:bg-white/90 sm:inline-flex"><Link href="/signup">Create account</Link></Button>
         </nav>
       </header>
 

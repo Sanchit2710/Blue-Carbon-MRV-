@@ -21,7 +21,7 @@ export function BoundaryMap({ polygon, points }: { polygon: Polygon; points: Map
         ))}
         {points.map((p, i) => <circle key={i} cx={x(p.lng)} cy={y(p.lat)} r="5" fill={p.flagged ? "#b91c1c" : "#0f766e"} stroke="white" strokeWidth="1.5" />)}
       </svg>
-      <figcaption className="mt-2 text-sm text-muted-foreground">Schematic drawing, no map underneath. Teal dots are inside the boundary, red dots outside. {points.length} geotagged photo(s) plotted.</figcaption>
+      <figcaption className="mt-2 text-sm text-muted-foreground">{points.length ? `Schematic drawing, no map underneath. Teal dots are inside the boundary, red dots outside. ${points.length} geotagged photo(s) plotted.` : "Schematic drawing of the registered boundary, no map underneath."}</figcaption>
     </figure>
   );
 }

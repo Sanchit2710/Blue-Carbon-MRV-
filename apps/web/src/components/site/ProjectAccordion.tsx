@@ -21,7 +21,7 @@ export function ProjectAccordion({ projects }: { projects: FeaturedProject[] }) 
               <p className="font-display text-2xl font-semibold leading-tight">{p.name}</p>
               <p className="mt-1 text-white/80">{p.region}, {p.hectares} ha</p>
             </div>
-            <span className={`absolute bottom-5 left-1/2 hidden -translate-x-1/2 -rotate-90 whitespace-nowrap text-sm font-medium text-white/90 transition-opacity md:block ${active === i ? "opacity-0" : "opacity-100"}`} aria-hidden>{p.name.split(" ").slice(0, 2).join(" ")}</span>
+            <span className={`absolute bottom-5 left-1/2 hidden max-h-[70%] -translate-x-1/2 rotate-180 truncate whitespace-nowrap text-sm font-medium text-white/90 transition-opacity [writing-mode:vertical-rl] md:block ${active === i ? "opacity-0" : "opacity-100"}`} aria-hidden>{p.name}</span>
           </Link>
         </li>
       ))}
