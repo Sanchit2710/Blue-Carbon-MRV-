@@ -15,7 +15,7 @@
 
 ## Researched, not built yet (in priority order)
 1. **Offline capture queue** (PWA + IndexedDB): field sites often have no signal; MaMA, WETSAPP and TreeMapper all sync when connected.
-2. **Map with basemap and boundary drawing** (e.g. Leaflet + OpenStreetMap tiles): replaces pasted GeoJSON; walk-the-boundary from GPS points as WRI describes.
+2. **Boundary drawing on the map**: the map itself is done (Leaflet + OpenStreetMap, with centre, bounding box and a drawn-vs-declared area check); drawing/walking the boundary instead of pasting GeoJSON is still to do.
 3. **Notifications**: email/in-app when a verifier decides or a monitoring report is due.
 4. **Guided observation forms**: species picker, threat categories (cutting, erosion, grazing), survival counts per plot.
 5. **Auto context**: tide and weather at capture time (WETSAPP does this), useful for interpreting photos and NDVI.

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { EvidenceCapture } from "@/components/EvidenceCapture";
+import { BoundaryMap } from "@/components/BoundaryMap";
 import { EvidenceTable } from "@/components/EvidenceTable";
+import { parseBoundary } from "@/lib/evidence/geo";
 import { CreditsList } from "@/components/chain/CreditsList";
 import { NgoMarket } from "@/components/chain/NgoMarket";
 import { Page } from "@/components/RoleShell";
@@ -22,11 +24,13 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
   if (!project) notFound();
 
-  const [{ data: evidence }, { data: decisions }, { data: maintenance }] = await Promise.all([
+  const [{ data: evidence }, { data: decisions }, { data: maintenance }, { data: boundaryRow }] = await Promise.all([
     supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, is_demo, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("verification_decisions").select("id, decision, reason, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("maintenance_reports").select("id, due_date, status, notes, review_notes").eq("project_id", id).order("due_date"),
+    supabase.from("project_boundaries").select("geojson").eq("project_id", id).maybeSingle(),
   ]);
+  const boundary = boundaryRow ? parseBoundary(JSON.stringify(boundaryRow.geojson)) : null;
   const rows = await signEvidence(supabase, evidence ?? []);
   const editable = project.status === "draft" || project.status === "requires_more_evidence";
   const openUntil = reportWindow(); // reports open for submission 90 days before they're due
@@ -58,6 +62,17 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
                 <p className="mt-2">{d.reason}</p>
               </li>
             ))}</ul>
+          </section>
+        )}
+
+        {boundary?.ok && (
+          <section>
+            <h2 className="mb-4 text-2xl font-semibold text-mangrove">Site boundary</h2>
+            <BoundaryMap polygon={boundary.polygon} declaredHa={Number(project.area_hectares)}
+              points={(evidence ?? []).flatMap((e) => {
+                const lat = e.gps_lat ?? e.device_lat, lng = e.gps_lng ?? e.device_lng;
+                return lat != null && lng != null ? [{ lat, lng, flagged: (e.flags as string[]).includes("outside_boundary") }] : [];
+              })} />
           </section>
         )}
 
