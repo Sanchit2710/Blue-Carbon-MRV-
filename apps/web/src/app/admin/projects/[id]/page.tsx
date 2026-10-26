@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { BoundaryMap } from "@/components/BoundaryMap";
 import { EvidenceTable, type EvidenceRow } from "@/components/EvidenceTable";
+import { CreditsList } from "@/components/chain/CreditsList";
+import { IssueCredits } from "@/components/chain/IssueCredits";
+import { addressUrl, hasChain, short } from "@/lib/chain/config";
 import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
@@ -10,11 +13,13 @@ import { signEvidence } from "@/lib/evidence/sign";
 import { createClient } from "@/lib/supabase/server";
 import { reviewProject, startReview } from "../../actions";
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 export default async function ReviewPage({ params }: PageProps<"/admin/projects/[id]">) {
   const { id } = await params;
   await requireRole("admin");
   const supabase = await createClient();
-  const { data: project } = await supabase.from("projects").select("*, organizations(name, contact_email, region)").eq("id", id).maybeSingle();
+  const { data: project } = await supabase.from("projects").select("*, organizations(name, contact_email, region, wallet_address)").eq("id", id).maybeSingle();
   if (!project) notFound();
 
   const [{ data: evidence }, { data: boundaryRow }, { data: decisions }] = await Promise.all([
@@ -29,7 +34,10 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
   const boundary = boundaryRow ? parseBoundary(JSON.stringify(boundaryRow.geojson)) : null;
   const points = photos.map((r) => (r.gps_lat != null ? { lat: r.gps_lat, lng: r.gps_lng! } : r.device_lat != null ? { lat: r.device_lat, lng: r.device_lng! } : null))
     .flatMap((pt, i) => (pt ? [{ ...pt, flagged: (photos[i].flags as string[]).includes("outside_boundary") }] : []));
-  const org = project.organizations as unknown as { name: string; contact_email: string | null } | null;
+  const org = project.organizations as unknown as { name: string; contact_email: string | null; wallet_address: string | null } | null;
+  const approval = decisions?.find((d) => d.decision === "approve");
+  const creditStart: string = project.planting_date ?? project.stewardship_start ?? today();
+  const creditEnd = new Date(Date.parse(creditStart) + 365 * 864e5).toISOString().slice(0, 10);
   const reviewable = project.status === "submitted" || project.status === "under_review";
 
   return (
@@ -65,6 +73,22 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
                 <StatusBadge status={d.decision === "approve" ? "approved" : d.decision === "reject" ? "rejected" : "requires_more_evidence"} /> {d.reason}
                 <span className="block text-xs text-muted-foreground">{(d.profiles as unknown as { full_name: string | null } | null)?.full_name ?? "Reviewer"}, {new Date(d.created_at).toISOString().slice(0, 16).replace("T", " ")} UTC</span>
               </li>))}</ul>
+          </section>
+        )}
+
+        {project.status === "approved" && (
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold text-mangrove">Credits</h2>
+            <p className="text-muted-foreground">
+              Organisation wallet: {org?.wallet_address
+                ? <a href={addressUrl(org.wallet_address)} target="_blank" rel="noreferrer" className="tabular font-medium text-mangrove underline underline-offset-4">{short(org.wallet_address)}</a>
+                : "not linked yet. The NGO connects MetaMask on its dashboard before credits can be issued."}
+            </p>
+            <CreditsList projectId={id} />
+            {hasChain && org?.wallet_address && (
+              <IssueCredits projectId={id} defaultStart={creditStart} defaultEnd={creditEnd}
+                defaultRef={approval ? `BlueCarbon approval ${approval.id.slice(0, 8)} (${new Date(approval.created_at).toISOString().slice(0, 10)})` : `BlueCarbon project ${id.slice(0, 8)}`} />
+            )}
           </section>
         )}
 

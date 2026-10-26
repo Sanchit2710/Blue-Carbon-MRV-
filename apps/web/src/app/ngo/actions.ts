@@ -10,6 +10,9 @@ import { distanceM, parseBoundary, pointInPolygon } from "@/lib/evidence/geo";
 import { flagLabel } from "@/lib/evidence/flags";
 import { dHash, sha256 } from "@/lib/evidence/hash";
 import { createClient } from "@/lib/supabase/server";
+import { verifyMessage } from "ethers";
+import { walletLinkMessage } from "@/lib/chain/link";
+import { requireRole } from "@/lib/auth";
 
 const MAX_BYTES = 25 * 1024 * 1024; // originals are kept untouched; no recompression
 const MIN_LONG_EDGE = 1600; // below this a "photo" is usually a screenshot or a re-compressed copy
@@ -197,4 +200,26 @@ export async function submitMaintenance(_: FormState, form: FormData): Promise<F
   await supabase.rpc("log_audit", { p_action: "maintenance.submit", p_entity: "maintenance_report", p_entity_id: parsed.data.report_id });
   revalidatePath(`/ngo/projects/${parsed.data.project_id}`);
   return { notice: "Maintenance report submitted." };
+}
+
+// ───────── wallet ─────────
+// The NGO signs a message with MetaMask; the signature proves they control the address credits go to.
+export async function linkWallet(input: { address: string; signature: string; issuedAt: string }): Promise<FormState> {
+  const p = await requireRole("ngo");
+  if (!p.org) return { error: "Set up your organisation first." };
+  const v = z.object({ address: z.string().regex(/^0x[0-9a-fA-F]{40}$/), signature: z.string().regex(/^0x[0-9a-fA-F]+$/), issuedAt: z.string().datetime() }).safeParse(input);
+  if (!v.success) return { error: "Invalid wallet details." };
+  const age = Date.now() - Date.parse(v.data.issuedAt);
+  if (age < -60_000 || age > 10 * 60_000) return { error: "That signature has expired. Please try again." };
+  let signer: string;
+  try { signer = verifyMessage(walletLinkMessage(v.data.address, p.org.id, v.data.issuedAt), v.data.signature); }
+  catch { return { error: "The signature couldn’t be verified." }; }
+  if (signer.toLowerCase() !== v.data.address.toLowerCase()) return { error: "The signature doesn’t match that wallet." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("organizations").update({ wallet_address: signer }).eq("id", p.org.id).select("id");
+  if (error) return { error: error.message.replace(/^.*?exception: /i, "") };
+  if (!data?.length) return { error: "Organisation not found." };
+  await supabase.rpc("log_audit", { p_action: "organization.link_wallet", p_entity: "organization", p_entity_id: p.org.id, p_detail: { address: signer } });
+  revalidatePath("/ngo");
+  return { notice: "Wallet linked. Credits for your approved projects will be issued to it." };
 }

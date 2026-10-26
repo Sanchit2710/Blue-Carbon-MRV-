@@ -4,7 +4,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type Role = "ngo" | "company" | "admin";
-export type Org = { id: string; name: string; region: string | null };
+export type Org = { id: string; name: string; region: string | null; wallet_address: string | null };
 
 // One call per request (React cache): the session JWT is verified locally against the project's
 // published ES256 keys (getClaims), then profile + organisation come back in a single query.
@@ -16,7 +16,7 @@ export const getProfile = cache(async () => {
   if (!claims?.sub) return null;
   const { data: row } = await supabase
     .from("profiles")
-    .select("id, role, full_name, organization_members(organizations(id, name, region))")
+    .select("id, role, full_name, organization_members(organizations(id, name, region, wallet_address))")
     .eq("id", claims.sub)
     .single();
   if (!row) return null;

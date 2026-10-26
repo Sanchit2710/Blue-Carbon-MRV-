@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { EvidenceCapture } from "@/components/EvidenceCapture";
 import { EvidenceTable } from "@/components/EvidenceTable";
+import { CreditsList } from "@/components/chain/CreditsList";
 import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
@@ -71,6 +72,13 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
               <input type="hidden" name="project_id" value={id} />
               <p className="max-w-[60ch] text-muted-foreground">Submitting locks the project details until the verifier responds. It doesn’t issue any credits.</p>
             </ActionForm>
+          </section>
+        )}
+
+        {project.status === "approved" && (
+          <section>
+            <h2 className="mb-4 text-2xl font-semibold text-mangrove">Credits</h2>
+            <CreditsList projectId={id} />
           </section>
         )}
 
