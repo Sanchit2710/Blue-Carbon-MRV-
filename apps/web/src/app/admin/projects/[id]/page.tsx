@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { AdminNav } from "@/components/AdminNav";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { BoundaryMap } from "@/components/BoundaryMap";
 import { EvidenceTable, type EvidenceRow } from "@/components/EvidenceTable";
@@ -7,6 +6,7 @@ import { RoleShell } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
 import { parseBoundary } from "@/lib/evidence/geo";
+import { signEvidence } from "@/lib/evidence/sign";
 import { createClient } from "@/lib/supabase/server";
 import { reviewProject, startReview } from "../../actions";
 
@@ -18,53 +18,52 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
   if (!project) notFound();
 
   const [{ data: evidence }, { data: boundaryRow }, { data: decisions }] = await Promise.all([
-    supabase.from("evidence_files").select("id, kind, sha256, mime_type, storage_path, gps_lat, gps_lng, captured_at, flags, created_at").eq("project_id", id).order("created_at"),
+    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, created_at").eq("project_id", id).order("created_at"),
     supabase.from("project_boundaries").select("geojson").eq("project_id", id).maybeSingle(),
     supabase.from("verification_decisions").select("id, decision, reason, created_at, profiles(full_name)").eq("project_id", id).order("created_at", { ascending: false }),
   ]);
 
-  const signed = evidence?.length ? await supabase.storage.from("evidence").createSignedUrls(evidence.map((e) => e.storage_path), 300) : null;
-  const urlByPath = new Map((signed?.data ?? []).map((u) => [u.path, u.signedUrl] as const));
-  const rows: EvidenceRow[] = (evidence ?? []).map((e) => ({ ...e, url: urlByPath.get(e.storage_path) ?? undefined }));
+  const rows: EvidenceRow[] = await signEvidence(supabase, evidence ?? []);
   const photos = rows.filter((r) => r.kind === "photo");
   const count = (f: string) => photos.filter((r) => (r.flags as string[]).includes(f)).length;
   const boundary = boundaryRow ? parseBoundary(JSON.stringify(boundaryRow.geojson)) : null;
-  const points = photos.filter((r) => r.gps_lat != null).map((r) => ({ lat: r.gps_lat!, lng: r.gps_lng!, flagged: (r.flags as string[]).includes("outside_boundary") }));
+  const points = photos.map((r) => (r.gps_lat != null ? { lat: r.gps_lat, lng: r.gps_lng! } : r.device_lat != null ? { lat: r.device_lat, lng: r.device_lng! } : null))
+    .flatMap((pt, i) => (pt ? [{ ...pt, flagged: (photos[i].flags as string[]).includes("outside_boundary") }] : []));
   const org = project.organizations as unknown as { name: string; contact_email: string | null } | null;
   const reviewable = project.status === "submitted" || project.status === "under_review";
 
   return (
-    <RoleShell title={project.name} who={p.email}>
-      <AdminNav />
+    <RoleShell title={project.name} who={p.email} role={p.role}>
+
       <div className="space-y-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
+        <section className="rounded-xl border border-border bg-white p-6">
           <div className="mb-2 flex items-center gap-3"><StatusBadge status={project.status} />
-            <span className="text-sm text-slate-600 capitalize">{project.ecosystem.replace("_", " ")} · {project.region} · {project.area_hectares} ha</span></div>
-          <p className="text-sm text-slate-700">{project.description}</p>
-          <p className="mt-2 text-xs text-slate-500">{org?.name} ({org?.contact_email}) · planted {project.planting_date} · stewardship {project.stewardship_start} → {project.stewardship_end}, responsible: {project.stewardship_responsible}</p>
+            <span className="text-muted-foreground"><span className="capitalize">{project.ecosystem.replace("_", " ")}</span> in {project.region}, <span className="tabular">{project.area_hectares}</span> ha</span></div>
+          <p className="text-sm text-foreground">{project.description}</p>
+          <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm"><dt className="text-muted-foreground">Organisation</dt><dd>{org?.name} ({org?.contact_email})</dd><dt className="text-muted-foreground">Planted</dt><dd className="tabular">{project.planting_date}</dd><dt className="text-muted-foreground">Stewardship</dt><dd className="tabular">{project.stewardship_start} to {project.stewardship_end}, {project.stewardship_responsible}</dd></dl>
         </section>
 
         <section>
           <h2 className="mb-2 text-lg font-semibold">Automated checks</h2>
-          <ul className="grid gap-2 text-sm sm:grid-cols-3">
-            {[["Photos", photos.length], ["Missing GPS", count("missing_gps")], ["Outside boundary", count("outside_boundary")], ["Missing capture time", count("missing_capture_time")],
-              ["Implausible / pre-planting time", count("capture_time_implausible") + count("captured_before_planting")], ["Exact duplicates", count("exact_duplicate")], ["Similar to other images", count("similar_image")]].map(([k, v]) => (
-              <li key={k as string} className={`rounded border p-3 ${v && k !== "Photos" ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"}`}><span className="block text-xs text-slate-500">{k}</span><span className="text-lg font-semibold">{v}</span></li>))}
+          <ul className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            {[["Photos", photos.length], ["No location in photo", count("missing_gps")], ["Outside boundary", count("outside_boundary")], ["Photo and phone disagree", count("device_gps_mismatch")],
+              ["No or odd capture time", count("missing_capture_time") + count("capture_time_implausible") + count("captured_before_planting")], ["Exact duplicates", count("exact_duplicate")], ["Look like other photos", count("similar_image")], ["Low resolution", count("low_resolution")]].map(([k, v]) => (
+              <li key={k as string} className={`rounded-xl border p-4 ${v && k !== "Photos" ? "border-amber-300 bg-amber-50" : "border-border bg-white"}`}><span className="block text-muted-foreground">{k}</span><span className="tabular font-display text-2xl font-semibold">{v}</span></li>))}
           </ul>
-          <p className="mt-2 text-xs text-slate-500">Hints only. EXIF/GPS can be absent or forged, a hash shows file consistency not site authenticity, and similarity is a heuristic. Satellite/NDVI analysis is not available yet. Approval does not issue credits or fix a credit quantity.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Hints only. EXIF/GPS can be absent or forged, a hash shows file consistency not site authenticity, and similarity is a heuristic. Satellite/NDVI analysis is not available yet. Approval does not issue credits or fix a credit quantity.</p>
         </section>
 
         {boundary?.ok && <section><h2 className="mb-2 text-lg font-semibold">Boundary</h2><BoundaryMap polygon={boundary.polygon} points={points} /></section>}
 
-        <section><h2 className="mb-2 text-lg font-semibold">Evidence</h2><EvidenceTable rows={rows} /><p className="mt-1 text-xs text-slate-500">File links are signed and expire after 5 minutes.</p></section>
+        <section><h2 className="mb-2 text-lg font-semibold">Evidence</h2><EvidenceTable rows={rows} /><p className="mt-2 text-sm text-muted-foreground">Links expire after 10 minutes. “Download original” gives the exact uploaded file, so its SHA-256 matches the one shown.</p></section>
 
         {!!decisions?.length && (
           <section>
             <h2 className="mb-2 text-lg font-semibold">Decision history</h2>
             <ul className="space-y-2">{decisions.map((d) => (
-              <li key={d.id} className="rounded border border-slate-200 bg-white p-3 text-sm">
+              <li key={d.id} className="rounded-xl border border-border bg-white p-4 text-sm">
                 <StatusBadge status={d.decision === "approve" ? "approved" : d.decision === "reject" ? "rejected" : "requires_more_evidence"} /> {d.reason}
-                <span className="block text-xs text-slate-500">{(d.profiles as unknown as { full_name: string | null } | null)?.full_name ?? "reviewer"} · {new Date(d.created_at).toISOString().slice(0, 16).replace("T", " ")} UTC</span>
+                <span className="block text-xs text-muted-foreground">{(d.profiles as unknown as { full_name: string | null } | null)?.full_name ?? "Reviewer"}, {new Date(d.created_at).toISOString().slice(0, 16).replace("T", " ")} UTC</span>
               </li>))}</ul>
           </section>
         )}
@@ -74,10 +73,10 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
             {project.status === "submitted" && (
               <ActionForm action={startReview} submitLabel="Start review" className="space-y-2">
                 <input type="hidden" name="project_id" value={id} />
-                <p className="text-sm text-slate-600">Moves the project to <em>under review</em> (locks it for the NGO).</p>
+                <p className="text-sm text-muted-foreground">Moves the project to <em>under review</em> (locks it for the NGO).</p>
               </ActionForm>
             )}
-            <ActionForm action={reviewProject} submitLabel="Record decision" className="max-w-xl space-y-3 rounded-lg border border-slate-200 bg-white p-5">
+            <ActionForm action={reviewProject} submitLabel="Record decision" className="max-w-xl space-y-3 rounded-xl border border-border bg-white p-6">
               <h2 className="text-lg font-semibold">Decision</h2>
               <input type="hidden" name="project_id" value={id} />
               <label className="block text-sm font-medium">Outcome
@@ -86,7 +85,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/projects/
                 </select>
               </label>
               <label className="block text-sm font-medium">Reason (shown to the NGO)<textarea name="reason" rows={3} required minLength={10} className={`${fieldClass} mt-1`} /></label>
-              <p className="text-xs text-slate-500">Your identity, decision, reason and time are recorded in the audit log. You cannot review a project of an organization you belong to.</p>
+              <p className="text-xs text-muted-foreground">Your identity, decision, reason and time are recorded in the audit log. You cannot review a project of an organization you belong to.</p>
             </ActionForm>
           </section>
         )}

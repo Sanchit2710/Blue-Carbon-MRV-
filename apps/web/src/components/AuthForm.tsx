@@ -1,38 +1,66 @@
 "use client";
 
-import { useActionState } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useActionState, useState } from "react";
 import type { FormState } from "@/app/(auth)/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const input = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/30";
+const roles = [
+  { value: "ngo", title: "NGO or panchayat", body: "I run a restoration site and submit evidence." },
+  { value: "company", title: "Company", body: "I want to review projects and fund verified restoration." },
+];
 
 export function AuthForm({ action, mode }: { action: (s: FormState, f: FormData) => Promise<FormState>; mode: "login" | "signup" }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const [show, setShow] = useState(false);
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-6" noValidate={false}>
       {mode === "signup" && (
         <>
-          <label className="block text-sm font-medium">Full name
-            <input name="full_name" required autoComplete="name" className={`${input} mt-1`} />
-          </label>
-          <label className="block text-sm font-medium">I am registering as
-            <select name="role" className={`${input} mt-1`} defaultValue="ngo">
-              <option value="ngo">NGO / Panchayat (restoration project owner)</option>
-              <option value="company">Company (credit buyer)</option>
-            </select>
-          </label>
+          <div className="space-y-2">
+            <Label htmlFor="full_name">Your name</Label>
+            <Input id="full_name" name="full_name" required autoComplete="name" />
+          </div>
+          <fieldset className="space-y-2">
+            <legend className="mb-2 text-sm font-medium">I’m joining as</legend>
+            <div className="grid gap-3">
+              {roles.map((r, i) => (
+                <label key={r.value} className="flex cursor-pointer gap-3 rounded-lg border border-input bg-white p-4 transition-colors has-[:checked]:border-brackish has-[:checked]:bg-accent has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
+                  <input type="radio" name="role" value={r.value} defaultChecked={i === 0} className="mt-1 size-4 accent-[#2f7c78]" />
+                  <span><span className="block font-medium text-mangrove">{r.title}</span><span className="block text-sm text-muted-foreground">{r.body}</span></span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </>
       )}
-      <label className="block text-sm font-medium">Email
-        <input name="email" type="email" required autoComplete="email" className={`${input} mt-1`} />
-      </label>
-      <label className="block text-sm font-medium">Password
-        <input name="password" type="password" required minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} className={`${input} mt-1`} />
-      </label>
-      {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
-      {state.notice && <p role="status" className="text-sm text-teal-800">{state.notice}</p>}
-      <button disabled={pending} className="w-full rounded-md bg-emerald-900 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
-        {pending ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
-      </button>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" name="email" type="email" required autoComplete="email" inputMode="email" />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Input id="password" name="password" type={show ? "text" : "password"} required minLength={8}
+            autoComplete={mode === "login" ? "current-password" : "new-password"} className="pr-12"
+            aria-describedby={mode === "signup" ? "password-hint" : undefined} />
+          <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? "Hide password" : "Show password"} aria-pressed={show}
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-brackish">
+            {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        </div>
+        {mode === "signup" && <p id="password-hint" className="text-sm text-muted-foreground">At least 8 characters.</p>}
+      </div>
+      <div aria-live="polite">
+        {state.error && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</p>}
+        {state.notice && <p className="rounded-lg border border-teal-200 bg-accent px-4 py-3 text-sm text-mangrove">{state.notice}</p>}
+      </div>
+      <Button type="submit" size="lg" disabled={pending} className="w-full">
+        {pending && <Loader2 className="size-5 animate-spin" aria-hidden />}
+        {pending ? (mode === "login" ? "Logging in…" : "Creating account…") : mode === "login" ? "Log in" : "Create account"}
+      </Button>
     </form>
   );
 }

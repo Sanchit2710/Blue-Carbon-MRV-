@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AdminNav } from "@/components/AdminNav";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
 import { RoleShell } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -19,15 +18,15 @@ export default async function MaintenanceAdminPage() {
     const list = rows.filter((r) => r.status === status);
     return (
       <section>
-        <h2 className="mb-2 text-lg font-semibold">{title} ({list.length})</h2>
-        {!list.length ? <p className="text-sm text-slate-600">None.</p> : (
+        <h2 className="mb-4 text-2xl font-semibold text-mangrove">{title} ({list.length})</h2>
+        {!list.length ? <p className="text-muted-foreground">None right now.</p> : (
           <ul className="space-y-3">{list.map((r) => (
-            <li key={r.id} className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-              <div className="flex items-center gap-3"><Link href={`/admin/projects/${r.projects?.id}`} className="font-medium text-teal-800 underline">{r.projects?.name}</Link><span>due {r.due_date}</span><StatusBadge status={r.status} /></div>
-              {r.notes && <p className="mt-2 text-slate-700">NGO: {r.notes}</p>}
-              {r.review_notes && <p className="mt-1 text-slate-500">Verifier: {r.review_notes}</p>}
+            <li key={r.id} className="rounded-xl border border-border bg-white p-5">
+              <div className="flex items-center gap-3"><Link href={`/admin/projects/${r.projects?.id}`} className="font-medium text-mangrove underline underline-offset-4">{r.projects?.name}</Link><span className="tabular text-sm text-muted-foreground">due {r.due_date}</span><StatusBadge status={r.status} /></div>
+              {r.notes && <p className="mt-2 text-foreground">NGO: {r.notes}</p>}
+              {r.review_notes && <p className="mt-1 text-muted-foreground">Verifier: {r.review_notes}</p>}
               {status === "submitted" && (
-                <ActionForm action={reviewMaintenance} submitLabel="Record review" className="mt-3 space-y-2">
+                <ActionForm action={reviewMaintenance} submitLabel="Record review" className="mt-4 space-y-3">
                   <input type="hidden" name="report_id" value={r.id} />
                   <select name="outcome" className={fieldClass} defaultValue="verified"><option value="verified">Verified</option><option value="flagged">Flag for follow-up</option></select>
                   <textarea name="notes" rows={2} required minLength={5} placeholder="Review notes" className={fieldClass} />
@@ -39,11 +38,11 @@ export default async function MaintenanceAdminPage() {
     );
   };
   return (
-    <RoleShell title="Maintenance monitoring" who={p.email}>
-      <AdminNav />
-      <div className="space-y-8">
-        <ActionForm action={markMissed} submitLabel="Mark overdue milestones as missed" className="space-y-2">
-          <p className="text-sm text-slate-600">Flags unsubmitted milestones past their due date. This is a follow-up flag only; no penalty or forfeiture is applied.</p>
+    <RoleShell title="Monitoring reports" who={p.email} role={p.role}>
+
+      <div className="space-y-12">
+        <ActionForm action={markMissed} submitLabel="Mark overdue reports as missed" variant="outline" className="space-y-3 rounded-xl border border-border bg-white p-5">
+          <p className="max-w-[62ch] text-muted-foreground">Flags unsubmitted milestones past their due date. This is a follow-up flag only; no penalty or forfeiture is applied.</p>
         </ActionForm>
         {section("Awaiting review", "submitted")}
         {section("Flagged", "flagged")}

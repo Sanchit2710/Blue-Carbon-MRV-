@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/AuthForm";
+import { AuthSplit } from "@/components/site/AuthSplit";
+import { photos } from "@/lib/photos";
 import { signup } from "../actions";
 
 export default function SignupPage() {
   return (
-    <>
-      <h1 className="mb-6 text-2xl font-semibold">Create account</h1>
+    <AuthSplit photo={photos.signup} caption="Register once, then send evidence straight from the riverbank.">
+      <h1 className="text-4xl font-semibold text-mangrove">Create your account</h1>
+      <p className="mt-2 mb-8 text-muted-foreground">Takes about a minute. You can add your organisation next.</p>
       <AuthForm action={signup} mode="signup" />
-      <p className="mt-6 text-sm text-slate-600">Already registered? <Link href="/login" className="font-medium text-teal-800 underline">Log in</Link></p>
-      <p className="mt-2 text-xs text-slate-500">Verifier/admin accounts are provisioned by platform operators, not self-service.</p>
-    </>
+      <p className="mt-8 text-muted-foreground">Already registered? <Link href="/login" className="font-medium text-mangrove underline underline-offset-4">Log in</Link></p>
+      <p className="mt-3 text-sm text-muted-foreground">Verifier accounts are set up by the platform team.</p>
+    </AuthSplit>
   );
 }

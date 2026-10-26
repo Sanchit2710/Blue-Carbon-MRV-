@@ -1,7 +1,7 @@
 // Run: node --test src/lib/evidence/check.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseBoundary, pointInPolygon } from "./geo.ts";
+import { distanceM, parseBoundary, pointInPolygon } from "./geo.ts";
 import { hamming } from "./hash.ts";
 
 const sq = '{"type":"Polygon","coordinates":[[[88,21],[89,21],[89,22],[88,22],[88,21]]]}';
@@ -27,4 +27,10 @@ test("point in polygon incl. hole", () => {
 test("hamming", () => {
   assert.equal(hamming("0000000000000000", "ffffffffffffffff"), 64);
   assert.equal(hamming("00000000000000ff", "0000000000000000"), 8);
+});
+
+test("distance", () => {
+  assert.equal(distanceM(21.9, 88.8, 21.9, 88.8), 0);
+  const d = distanceM(21.9, 88.8, 21.9 + 1 / 111.2, 88.8); // ~1 km north
+  assert.ok(d > 990 && d < 1010, String(d));
 });
