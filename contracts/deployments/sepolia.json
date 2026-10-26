@@ -1,11 +1,23 @@
 {
   "network": "sepolia",
   "chainId": 11155111,
-  "contract": "BlueCarbonRegistry",
-  "address": "0x9941E54386dA5bBb389Efdf482C175F0a620b031",
   "admin": "0x19b212Fc41790dCF8A8f1704928Aeda6c6495f8D",
-  "roles": ["DEFAULT_ADMIN_ROLE", "VERIFIER_ROLE"],
-  "deployedOn": "2026-10-26",
-  "explorer": "https://sepolia.etherscan.io/address/0x9941E54386dA5bBb389Efdf482C175F0a620b031",
+  "contracts": {
+    "BlueCarbonRegistry": {
+      "address": "0x9941E54386dA5bBb389Efdf482C175F0a620b031",
+      "deployedOn": "2026-10-26",
+      "roles": [
+        "DEFAULT_ADMIN_ROLE",
+        "VERIFIER_ROLE"
+      ],
+      "explorer": "https://sepolia.etherscan.io/address/0x9941E54386dA5bBb389Efdf482C175F0a620b031"
+    },
+    "BlueCarbonMarketplace": {
+      "address": "0xa0Ff80D20FF18AdF73ee510920656563D22abefA",
+      "registry": "0x9941E54386dA5bBb389Efdf482C175F0a620b031",
+      "deployedOn": "2026-10-26",
+      "explorer": "https://sepolia.etherscan.io/address/0xa0Ff80D20FF18AdF73ee510920656563D22abefA"
+    }
+  },
   "note": "Test network only. Tokens here are records, not legally recognised carbon credits."
 }

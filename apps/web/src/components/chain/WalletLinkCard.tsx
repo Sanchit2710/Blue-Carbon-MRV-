@@ -34,16 +34,6 @@ export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive", dem
     }
   }
 
-  if (demo) return (
-    <section className="flex flex-wrap items-center gap-4 rounded-xl border border-amber-200 bg-amber-50/60 p-5">
-      <Wallet className="size-6 text-amber-800" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">Demo wallet</p>
-        <p className="text-sm text-muted-foreground">This demonstration organisation has a placeholder address ({wallet ? short(wallet) : "none"}). Its credits and trades are simulated and never touch {CHAIN_NAME}.</p>
-      </div>
-    </section>
-  );
-
   return (
     <section className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-white p-5">
       <Wallet className="size-6 text-brackish" aria-hidden />
@@ -56,6 +46,7 @@ export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive", dem
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
+            {demo ? "Demonstration organisation: link a MetaMask test account to run real Sepolia transactions in a live demo. Seeded demo trades stay simulated. " : null}
             {purpose === "buy" ? `Credits you buy are held in this wallet on ${CHAIN_NAME} (a test network, no real money), and you retire them from it.` : `When a project is approved, its credits are recorded to this wallet on ${CHAIN_NAME} (a test network, no real money).`} You’ll sign a message to prove it’s yours. There’s no fee.
           </p>
         )}
