@@ -1,9 +1,9 @@
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AuditPage({ searchParams }: PageProps<"/admin/audit">) {
-  const p = await requireRole("admin");
+  await requireRole("admin");
   const sp = await searchParams;
   const prefix = typeof sp.action === "string" ? sp.action.replace(/[^\w.]/g, "") : "";
   const supabase = await createClient();
@@ -11,7 +11,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
   if (prefix) q = q.like("action", `${prefix}%`);
   const { data } = await q;
   return (
-    <RoleShell title="Audit log" who={p.email} role={p.role}>
+    <Page title="Audit log">
 
       <form className="mb-6 flex flex-wrap gap-2" role="search">
         <input name="action" defaultValue={prefix} aria-label="Filter by action" placeholder="Filter by action, e.g. project." className="h-11 w-72 rounded-lg border border-input bg-white px-3.5" />
@@ -31,6 +31,6 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
         </table>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">Latest 200 entries. The log is append-only for clients: no insert/update/delete policies exist.</p>
-    </RoleShell>
+    </Page>
   );
 }

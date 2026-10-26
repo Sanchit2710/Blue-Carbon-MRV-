@@ -1,10 +1,10 @@
 import { ProjectRow } from "@/components/ProjectRow";
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminPage() {
-  const p = await requireRole("admin");
+  await requireRole("admin");
   const supabase = await createClient();
   const { data: queue } = await supabase
     .from("projects")
@@ -12,8 +12,7 @@ export default async function AdminPage() {
     .in("status", ["submitted", "under_review"])
     .order("updated_at");
   return (
-    <RoleShell title="Review queue" who={p.email} role={p.role}>
-      <p className="-mt-4 mb-8 text-lg text-muted-foreground">{queue?.length ? `${queue.length} project${queue.length === 1 ? "" : "s"} waiting, oldest first.` : "Nothing is waiting for review."}</p>
+    <Page title="Review queue" lead={queue?.length ? `${queue.length} project${queue.length === 1 ? "" : "s"} waiting, oldest first.` : "Nothing is waiting for review."}>
       {!!queue?.length && (
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white">
           {queue.map((q) => <ProjectRow key={q.id} href={`/admin/projects/${q.id}`} name={q.name} ecosystem={q.ecosystem} region={q.region}
@@ -21,6 +20,6 @@ export default async function AdminPage() {
         </ul>
       )}
       <p className="mt-8 text-sm text-muted-foreground">Credit issuance, transfer and retirement history will appear here once the ledger is connected.</p>
-    </RoleShell>
+    </Page>
   );
 }

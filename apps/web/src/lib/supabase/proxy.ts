@@ -21,7 +21,9 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Verifies the JWT locally (ES256 keys) and refreshes the cookie when it has expired.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims;
   const path = request.nextUrl.pathname;
   if (!user && PROTECTED.some((p) => path === p || path.startsWith(p + "/"))) {
     const url = request.nextUrl.clone();

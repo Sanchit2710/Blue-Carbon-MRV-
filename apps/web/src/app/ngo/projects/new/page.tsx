@@ -1,20 +1,17 @@
 import { redirect } from "next/navigation";
 import { ActionForm, fieldClass, labelClass } from "@/components/ActionForm";
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { requireRole } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
 import { createProject } from "../../actions";
 
 const example = `{"type":"Polygon","coordinates":[[[88.80,21.90],[88.82,21.90],[88.82,21.92],[88.80,21.92],[88.80,21.90]]]}`;
 
 export default async function NewProjectPage() {
   const p = await requireRole("ngo");
-  const supabase = await createClient();
-  const { data: org } = await supabase.from("organizations").select("id").limit(1).maybeSingle();
+  const org = p.org;
   if (!org) redirect("/ngo");
   return (
-    <RoleShell title="Register a restoration project" who={p.email} role={p.role}>
-      <p className="-mt-4 mb-8 max-w-[62ch] text-lg text-muted-foreground">This creates a draft. You can add photos and check everything before sending it to a verifier.</p>
+    <Page title="Register a restoration project" lead="This creates a draft. You can add photos and check everything before sending it to a verifier.">
       <ActionForm action={createProject} submitLabel="Create draft project" pendingLabel="Creating…" className="max-w-2xl space-y-5 rounded-xl border border-border bg-white p-6">
         <input type="hidden" name="organization_id" value={org.id} />
         <label className={labelClass}>Project name<input name="name" required minLength={3} className={fieldClass} /></label>
@@ -38,6 +35,6 @@ export default async function NewProjectPage() {
         </label>
         <p className="text-sm text-muted-foreground">Your organisation is recorded as responsible for stewardship. Buyer or landholder obligations are set in separate agreements, not here.</p>
       </ActionForm>
-    </RoleShell>
+    </Page>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/auth";
 
@@ -19,10 +19,15 @@ export function SidebarNav({ role }: { role: Role }) {
     <nav aria-label="Main" className="flex gap-1 overflow-x-auto lg:flex-col">
       {items.map((i) => (
         <Link key={i.href} href={i.href} aria-current={active === i.href ? "page" : undefined}
-          className="whitespace-nowrap rounded-md px-3 py-2.5 text-[15px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-white">
-          {i.label}
+          className="flex items-center justify-between gap-2 whitespace-nowrap rounded-md px-3 py-2.5 transition-colors active:bg-sidebar-accent/70 text-[15px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-white">
+          {i.label}<Pending />
         </Link>
       ))}
     </nav>
   );
+}
+
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden className={`size-1.5 rounded-full bg-brackish transition-opacity ${pending ? "animate-pulse opacity-100" : "opacity-0"}`} />;
 }

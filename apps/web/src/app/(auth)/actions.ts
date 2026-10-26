@@ -15,9 +15,11 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const parsed = creds.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: error.message };
-  redirect("/dashboard");
+  // Straight to the right dashboard: skips a /dashboard render + redirect round trip.
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+  redirect(profile ? `/${profile.role}` : "/dashboard");
 }
 
 const signupSchema = creds.extend({
@@ -33,7 +35,7 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name, role } } });
   if (error) return { error: error.message };
   if (!data.session) return { notice: "Check your email to confirm your account, then log in." };
-  redirect("/dashboard");
+  redirect(`/${role}`); // matches the role the signup trigger stores (ngo or company)
 }
 
 export async function logout() {

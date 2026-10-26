@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
-import { RoleShell } from "@/components/RoleShell";
+import { Page } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -9,7 +9,7 @@ import { markMissed, reviewMaintenance } from "../actions";
 type Row = { id: string; due_date: string; status: string; notes: string | null; review_notes: string | null; projects: { id: string; name: string } | null };
 
 export default async function MaintenanceAdminPage() {
-  const p = await requireRole("admin");
+  await requireRole("admin");
   const supabase = await createClient();
   const { data } = await supabase.from("maintenance_reports").select("id, due_date, status, notes, review_notes, projects(id, name)")
     .in("status", ["submitted", "missed", "flagged"]).order("due_date");
@@ -38,7 +38,7 @@ export default async function MaintenanceAdminPage() {
     );
   };
   return (
-    <RoleShell title="Monitoring reports" who={p.email} role={p.role}>
+    <Page title="Monitoring reports">
 
       <div className="space-y-12">
         <ActionForm action={markMissed} submitLabel="Mark overdue reports as missed" variant="outline" className="space-y-3 rounded-xl border border-border bg-white p-5">
@@ -48,6 +48,6 @@ export default async function MaintenanceAdminPage() {
         {section("Flagged", "flagged")}
         {section("Missed deadlines", "missed")}
       </div>
-    </RoleShell>
+    </Page>
   );
 }

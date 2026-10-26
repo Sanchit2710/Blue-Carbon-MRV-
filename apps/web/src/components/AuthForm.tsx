@@ -54,8 +54,8 @@ export function AuthForm({ action, mode }: { action: (s: FormState, f: FormData)
         {mode === "signup" && <p id="password-hint" className="text-sm text-muted-foreground">At least 8 characters.</p>}
       </div>
       <div aria-live="polite">
-        {state.error && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</p>}
-        {state.notice && <p className="rounded-lg border border-teal-200 bg-accent px-4 py-3 text-sm text-mangrove">{state.notice}</p>}
+        {state.error && <p className="animate-in fade-in slide-in-from-top-1 duration-200 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 motion-reduce:animate-none">{state.error}</p>}
+        {state.notice && <p className="animate-in fade-in slide-in-from-top-1 duration-200 rounded-lg border border-teal-200 bg-accent px-4 py-3 text-sm text-mangrove motion-reduce:animate-none">{state.notice}</p>}
       </div>
       <Button type="submit" size="lg" disabled={pending} className="w-full">
         {pending && <Loader2 className="size-5 animate-spin" aria-hidden />}
