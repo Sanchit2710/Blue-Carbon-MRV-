@@ -8,6 +8,7 @@ import { CHAIN_ID } from "@/lib/chain/config";
 import { marketEvents, readMarket, registryEvents } from "@/lib/chain/server";
 import { ethPerTonne, tonnes } from "@/lib/chain/units";
 import { adminClient } from "@/lib/supabase/admin";
+import { demoHolding } from "@/lib/demo";
 import { createClient } from "@/lib/supabase/server";
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -116,4 +117,51 @@ export async function confirmRetirement(input: { hash: string; batchId: string; 
     revalidatePath("/company");
     return { ok: true, data: { retirementId: r.id } };
   } catch (e) { return fail((e as Error).message); }
+}
+
+// ───────── demonstration mode ─────────
+// Demo listings and batches (is_demo) can be "bought" and "retired" without a wallet so the flow can be
+// shown end to end. The records are flagged is_demo and labelled "simulated, not on-chain" in the UI.
+// Real listings never go through here.
+
+export async function simulatePurchase(input: { listingId: string; quantity: number }): Promise<Result<{ quantity: number }>> {
+  const p = await requireRole("company");
+  if (!p.org) return fail("Set up your company first.");
+  const qty = Math.round(Number(input.quantity) * 100) / 100;
+  if (!(qty > 0)) return fail("Enter a quantity.");
+  const db = adminClient();
+  const { data: l } = await db.from("marketplace_listings").select("id, is_demo, active, quantity_available, price_per_credit").eq("id", input.listingId).single();
+  if (!l?.is_demo) return fail("Only demonstration listings can be simulated.");
+  if (!l.active || qty > Number(l.quantity_available)) return fail(`Only ${Number(l.quantity_available)} tCO2e are available.`);
+  const left = Math.round((Number(l.quantity_available) - qty) * 100) / 100;
+  const { error: uErr } = await db.from("marketplace_listings").update({ quantity_available: left, active: left > 0 }).eq("id", l.id).eq("quantity_available", l.quantity_available);
+  if (uErr) return fail(uErr.message);
+  const { data: purchase, error } = await db.from("purchases").insert({
+    listing_id: l.id, buyer_org_id: p.org.id, quantity: qty, total_price: qty * Number(l.price_per_credit), status: "confirmed", is_demo: true,
+  }).select("id").single();
+  if (error) return fail(error.message);
+  await audit(p.id, "credits.purchase_simulated", "purchase", purchase.id, { demo: true, quantity: qty });
+  revalidatePath("/company");
+  return { ok: true, data: { quantity: qty } };
+}
+
+export async function simulateRetirement(input: { batchId: string; quantity: number; beneficiary: string; reason: string }): Promise<Result<{ retirementId: string }>> {
+  const p = await requireRole("company");
+  if (!p.org) return fail("Set up your company first.");
+  const v = z.object({ quantity: z.number().positive(), beneficiary: z.string().trim().min(2).max(200), reason: z.string().trim().min(3).max(200) }).safeParse(input);
+  if (!v.success) return fail(v.error.issues[0].message);
+  const db = adminClient();
+  const { data: batch } = await db.from("credit_batches").select("id, is_demo").eq("id", input.batchId).single();
+  if (!batch?.is_demo) return fail("Only demonstration credits can be retired in simulation.");
+  const held = await demoHolding(db, p.org.id, batch.id);
+  if (v.data.quantity > held) return fail(`You hold ${held} tCO2e of these demo credits.`);
+  const { data: r, error } = await db.from("credit_retirements").insert({
+    batch_id: batch.id, org_id: p.org.id, quantity: v.data.quantity, beneficiary: v.data.beneficiary, reason: v.data.reason, is_demo: true,
+  }).select("id").single();
+  if (error) return fail(error.message);
+  const { data: all } = await db.from("credit_retirements").select("quantity").eq("batch_id", batch.id);
+  await db.from("credit_batches").update({ retired_qty: (all ?? []).reduce((s, x) => s + Number(x.quantity), 0) }).eq("id", batch.id);
+  await audit(p.id, "credits.retire_simulated", "credit_retirement", r.id, { demo: true, quantity: v.data.quantity });
+  revalidatePath("/company");
+  return { ok: true, data: { retirementId: r.id } };
 }

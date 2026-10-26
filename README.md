@@ -44,3 +44,12 @@ npm install && npm run dev
 Apply `supabase/migrations/*.sql` in order (see `docs/supabase-setup.md` for the full end-to-end test walkthrough). Contracts: `cd contracts && npx hardhat test` (see `docs/contracts.md`). Optional demo data: `supabase/seed.sql` (flagged `is_demo`).
 Promote a verifier: `update profiles set role = 'admin' where id = '<user uuid>';`
 See `docs/architecture.md` for what is implemented vs planned. The stack list above describes the original proposal; the current plan is Next.js + Supabase + Hardhat.
+
+## 🔹 Demo data
+Clearly labelled demonstration data (2 NGOs, 2 companies, 1 verifier, 5 projects at every stage, evidence photos, decisions, monitoring, credits, listings, simulated purchases and retirements):
+```bash
+cd apps/web
+npm run seed:demo          # needs SUPABASE_SECRET_KEY in .env.local and migrations 0001-0007 applied
+npm run seed:demo:reset    # removes all demo data and demo accounts
+```
+Demo account emails and the shared password are written to `apps/web/.demo-accounts.local.json` (git-ignored). Demo trades are simulated (no blockchain transaction) and labelled as such throughout the app.

@@ -22,7 +22,7 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
   if (!project) notFound();
 
   const [{ data: evidence }, { data: decisions }, { data: maintenance }] = await Promise.all([
-    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, created_at").eq("project_id", id).order("created_at", { ascending: false }),
+    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, is_demo, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("verification_decisions").select("id, decision, reason, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("maintenance_reports").select("id, due_date, status, notes, review_notes").eq("project_id", id).order("due_date"),
   ]);

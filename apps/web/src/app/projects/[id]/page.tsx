@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { BoundaryMap } from "@/components/BoundaryMap";
+import { DemoBadge } from "@/components/DemoBadge";
+import { coverFor } from "@/lib/photos";
 import { BuyCredits } from "@/components/chain/BuyCredits";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { getProfile } from "@/lib/auth";
@@ -16,9 +19,9 @@ export default async function ProjectDetails({ params }: PageProps<"/projects/[i
   const { id } = await params;
   const supabase = await createClient();
   const [{ data: project }, { data: boundary }, { data: batches }, viewerProfile] = await Promise.all([
-    supabase.from("projects").select("id, name, description, ecosystem, region, species, area_hectares, planting_date, stewardship_start, stewardship_end, stewardship_responsible, is_demo, status").eq("id", id).eq("status", "approved").maybeSingle(),
+    supabase.from("projects").select("id, name, description, ecosystem, region, species, area_hectares, planting_date, stewardship_start, stewardship_end, stewardship_responsible, is_demo, status, cover_url").eq("id", id).eq("status", "approved").maybeSingle(),
     supabase.from("project_boundaries").select("geojson").eq("project_id", id).maybeSingle(),
-    supabase.from("credit_batches").select("id, period_start, period_end, methodology, verification_ref, issued_qty, retired_qty, marketplace_listings(id, onchain_listing_id, quantity_available, price_per_credit, price_wei_per_unit, active)").eq("project_id", id).gt("issued_qty", 0).order("period_start"),
+    supabase.from("credit_batches").select("id, period_start, period_end, methodology, verification_ref, issued_qty, retired_qty, is_demo, marketplace_listings(id, onchain_listing_id, quantity_available, price_per_credit, price_wei_per_unit, active, is_demo)").eq("project_id", id).gt("issued_qty", 0).order("period_start"),
     getProfile(),
   ]);
   if (!project) notFound();
@@ -30,10 +33,16 @@ export default async function ProjectDetails({ params }: PageProps<"/projects/[i
   return (
     <>
       <SiteHeader />
+      <section className="relative isolate h-[46svh] min-h-[320px] overflow-hidden bg-estuary text-white">
+        <Image src={coverFor(project)} alt="" fill priority sizes="100vw" quality={85} className="-z-10 object-cover" />
+        <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(to_top,rgba(14,34,54,0.9),rgba(14,34,54,0.15)_65%)]" />
+        <div className="mx-auto flex h-full max-w-6xl flex-col justify-end px-5 pb-10 sm:px-8">
+          <p className="flex flex-wrap items-center gap-2 text-white/85">{ecosystems[project.ecosystem]} in {project.region}{project.is_demo && <DemoBadge />}</p>
+          <h1 className="mt-1 max-w-[22ch] text-4xl font-semibold leading-tight sm:text-5xl">{project.name}</h1>
+        </div>
+      </section>
       <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8">
-        <p className="text-muted-foreground">{ecosystems[project.ecosystem]} in {project.region}{project.is_demo && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Demonstration data</span>}</p>
-        <h1 className="mt-1 text-4xl font-semibold text-mangrove sm:text-5xl">{project.name}</h1>
-        {project.description && <p className="mt-4 max-w-[64ch] text-lg leading-relaxed text-muted-foreground">{project.description}</p>}
+        {project.description && <p className="max-w-[64ch] text-lg leading-relaxed text-muted-foreground">{project.description}</p>}
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_380px]">
           <div className="space-y-10">
@@ -53,14 +62,14 @@ export default async function ProjectDetails({ params }: PageProps<"/projects/[i
           <aside className="space-y-6">
             <h2 className="text-2xl font-semibold text-mangrove">Credits</h2>
             {!batches?.length ? <p className="text-muted-foreground">Approved. No credits have been issued yet.</p> : batches.map((b) => {
-              const listings = ((b.marketplace_listings ?? []) as { id: string; onchain_listing_id: number; quantity_available: number; price_per_credit: number; price_wei_per_unit: string; active: boolean }[]).filter((l) => l.active && Number(l.quantity_available) > 0);
+              const listings = ((b.marketplace_listings ?? []) as { id: string; onchain_listing_id: number; quantity_available: number; price_per_credit: number; price_wei_per_unit: string | null; active: boolean; is_demo: boolean }[]).filter((l) => l.active && Number(l.quantity_available) > 0);
               return (
                 <div key={b.id} className="space-y-4 rounded-xl border border-border bg-white p-5">
                   <div className="text-sm text-muted-foreground"><p className="tabular">Crediting period {b.period_start} to {b.period_end}</p><p>{b.methodology}. Verification: {b.verification_ref}</p></div>
                   {!listings.length ? <p className="text-sm text-muted-foreground">Not for sale right now.</p> : listings.map((l) => (
                     <div key={l.id} className="space-y-3 border-t border-border pt-4">
                       <p className="tabular"><span className="font-display text-2xl font-semibold">{Number(l.price_per_credit)}</span> <span className="text-muted-foreground">ETH per tCO2e, {Number(l.quantity_available)} available</span></p>
-                      {hasMarket && <BuyCredits listingId={l.id} onchainListingId={Number(l.onchain_listing_id)} available={Number(l.quantity_available)} priceWeiPerUnit={l.price_wei_per_unit} viewer={viewer} />}
+                      {(l.is_demo || hasMarket) && <BuyCredits listingId={l.id} onchainListingId={Number(l.onchain_listing_id)} available={Number(l.quantity_available)} priceWeiPerUnit={l.price_wei_per_unit} pricePerTonne={Number(l.price_per_credit)} viewer={viewer} demo={l.is_demo} />}
                     </div>
                   ))}
                 </div>

@@ -11,3 +11,8 @@ export const photos = {
   underwater: { src: u("1717292741426-d050f4f25503"), alt: "Split view of a mangrove above and below the waterline", credit: "Kristin Hoel", w: 4000, h: 3000 },
   shore: { src: u("1779399642977-7c6bfd7bc472"), alt: "A dense wall of mangroves along a brown estuary", credit: "P Mantha", w: 6000, h: 4000 },
 } as const;
+
+// Public cover for a project: its own cover (if hosted on Unsplash, which next/image allows) or an ecosystem photo.
+const byEcosystem: Record<string, string> = { mangrove: photos.hero.src, seagrass: photos.underwater.src, salt_marsh: photos.shore.src, other: photos.shore.src };
+export const coverFor = (p: { cover_url?: string | null; ecosystem: string }) =>
+  p.cover_url?.startsWith("https://images.unsplash.com/") ? p.cover_url : byEcosystem[p.ecosystem] ?? photos.hero.src;

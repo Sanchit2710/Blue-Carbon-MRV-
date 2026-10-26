@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { DemoBadge } from "@/components/DemoBadge";
 import { short, txUrl } from "@/lib/chain/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -6,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function CreditsList({ projectId }: { projectId: string }) {
   const supabase = await createClient();
   const [{ data: batches }, { data: txs }] = await Promise.all([
-    supabase.from("credit_batches").select("id, methodology, verification_ref, period_start, period_end, approved_qty, issued_qty, retired_qty").eq("project_id", projectId).order("period_start"),
+    supabase.from("credit_batches").select("id, methodology, verification_ref, period_start, period_end, approved_qty, issued_qty, retired_qty, is_demo").eq("project_id", projectId).order("period_start"),
     supabase.from("blockchain_transactions").select("tx_hash, kind, status, batch_id, created_at").eq("project_id", projectId).order("created_at"),
   ]);
   const registration = (txs ?? []).find((t) => t.kind === "register" && t.status === "confirmed");
@@ -21,6 +22,7 @@ export async function CreditsList({ projectId }: { projectId: string }) {
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p><span className="tabular font-display text-2xl font-semibold text-mangrove">{Number(b.issued_qty).toLocaleString()}</span> <span className="text-muted-foreground">tCO2e issued</span></p>
               <p className="tabular text-sm text-muted-foreground">{b.period_start} to {b.period_end}</p>
+              {b.is_demo && <p className="w-full text-sm text-amber-900"><DemoBadge /> Issued off-chain for the demonstration; no blockchain transaction.</p>}
             </div>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
               <dt className="text-muted-foreground">Retired</dt><dd className="tabular">{Number(b.retired_qty).toLocaleString()} tCO2e</dd>
