@@ -34,3 +34,13 @@ We propose a **Blockchain-powered MRV system** with:
 
 ## 🔹 Team
 Team CarbCoders — SIH 2025 Hackathon
+
+## 🔹 Running locally (Phase 1)
+Active code: `apps/web` (Next.js 16), `supabase/` (schema, seed, tests), `docs/`.
+```bash
+cd apps/web && cp .env.example .env.local   # fill Supabase URL + anon key
+npm install && npm run dev
+```
+Apply `supabase/migrations/0001_schema.sql` (Supabase SQL editor or `supabase db push`). Optional demo data: `supabase/seed.sql` (flagged `is_demo`).
+Promote a verifier: `update profiles set role = 'admin' where id = '<user uuid>';`
+See `docs/architecture.md` for what is implemented vs planned. The stack list above describes the original proposal; the current plan is Next.js + Supabase + Hardhat.
