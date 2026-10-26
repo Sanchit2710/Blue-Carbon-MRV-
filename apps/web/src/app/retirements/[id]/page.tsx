@@ -5,6 +5,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { Logo } from "@/components/site/Logo";
 import { CHAIN_NAME, REGISTRY_ADDRESS, addressUrl, short, txUrl } from "@/lib/chain/config";
 import { createClient } from "@/lib/supabase/server";
+import { qty } from "@/lib/format";
 
 export const instant = false;
 
@@ -13,13 +14,13 @@ export default async function Certificate({ params }: PageProps<"/retirements/[i
   const { id } = await params;
   const supabase = await createClient();
   const { data: r } = await supabase.from("credit_retirements")
-    .select("id, quantity, beneficiary, reason, holder_address, tx_hash, is_demo, created_at, organizations(name), credit_batches(onchain_batch_id, period_start, period_end, methodology, verification_ref, projects(id, name, region))")
+    .select("id, org_id, quantity, beneficiary, reason, holder_address, tx_hash, is_demo, created_at, credit_batches(onchain_batch_id, period_start, period_end, methodology, verification_ref, projects(id, name, region))")
     .eq("id", id).maybeSingle();
   if (!r) notFound();
   const b = r.credit_batches as unknown as { onchain_batch_id: string; period_start: string; period_end: string; methodology: string; verification_ref: string; projects: { id: string; name: string; region: string } };
-  const org = r.organizations as unknown as { name: string } | null;
+  const { data: orgName } = await supabase.rpc("public_org_name", { org: r.org_id });
   const rows: [string, React.ReactNode][] = [
-    ["Retired by", org?.name],
+    ["Retired by", orgName ?? "—"],
     ["On behalf of", r.beneficiary],
     ["Reason", r.reason],
     ["Project", <Link key="p" href={`/projects/${b.projects.id}`} className="font-medium text-mangrove underline underline-offset-4">{b.projects.name}, {b.projects.region}</Link>],
@@ -37,12 +38,12 @@ export default async function Certificate({ params }: PageProps<"/retirements/[i
       <article className="mt-10 rounded-2xl border border-border bg-white p-8 sm:p-12 print:border-0 print:p-0">
         {r.is_demo && <p className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">Demonstration record. This retirement was simulated for a demo and is not recorded on any blockchain.</p>}
         <p className="text-muted-foreground">Retirement record</p>
-        <h1 className="mt-2 text-4xl font-semibold text-mangrove sm:text-5xl"><span className="tabular">{Number(r.quantity)}</span> tCO2e retired</h1>
+        <h1 className="mt-2 text-4xl font-semibold text-mangrove sm:text-5xl"><span className="tabular">{qty(r.quantity)}</span> tCO2e retired</h1>
         <p className="mt-3 max-w-[60ch] text-muted-foreground">These credits were permanently removed from circulation on the BlueCarbon registry and can’t be sold or transferred again.</p>
         <dl className="mt-8 grid grid-cols-1 gap-x-8 gap-y-3 border-t border-border pt-8 sm:grid-cols-[180px_1fr]">
           {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd className="break-words">{v}</dd></div>)}
         </dl>
-        <p className="mt-10 text-sm text-muted-foreground">Recorded on the {CHAIN_NAME} test network. This is a demonstration record, not a legally recognised carbon credit retirement; recognition depends on the applicable crediting programme.</p>
+        <p className="mt-10 text-sm text-muted-foreground">{r.is_demo ? "Simulated for a demonstration; nothing was recorded on-chain." : `Recorded on the ${CHAIN_NAME} test network.`} Not a legally recognised carbon credit retirement; recognition depends on the applicable crediting programme.</p>
       </article>
     </main>
   );

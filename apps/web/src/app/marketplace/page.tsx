@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DemoBadge } from "@/components/DemoBadge";
 import { Spotlight } from "@/components/site/Spotlight";
+import { qty } from "@/lib/format";
 import { coverFor } from "@/lib/photos";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
@@ -68,10 +69,10 @@ export default async function Marketplace({ searchParams }: PageProps<"/marketpl
                         <p className="mt-1 text-sm text-muted-foreground">Credited {r.credit_batches.period_start} to {r.credit_batches.period_end}</p>
                         <div className="mt-auto pt-5">
                           <p className="tabular"><span className="font-display text-2xl font-semibold">{Number(r.price_per_credit)}</span> <span className="text-muted-foreground">ETH per tCO2e</span></p>
-                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${Number(r.quantity_available)} of ${Number(r.credit_batches.issued_qty)} tCO2e still available`}>
+                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${qty(r.quantity_available)} of ${qty(r.credit_batches.issued_qty)} tCO2e still available`}>
                             <div className="h-full rounded-full bg-brackish" style={{ width: `${share}%` }} />
                           </div>
-                          <p className="tabular mt-1.5 text-sm text-muted-foreground">{Number(r.quantity_available)} of {Number(r.credit_batches.issued_qty)} tCO2e available</p>
+                          <p className="tabular mt-1.5 text-sm text-muted-foreground">{qty(r.quantity_available)} of {qty(r.credit_batches.issued_qty)} tCO2e available</p>
                         </div>
                       </div>
                     </Link>
