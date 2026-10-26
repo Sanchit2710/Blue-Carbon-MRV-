@@ -3,13 +3,13 @@
 import { ExternalLink, Loader2, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { linkWallet } from "@/app/ngo/actions";
+import { linkWallet } from "@/app/wallet-actions";
 import { Button } from "@/components/ui/button";
 import { addressUrl, CHAIN_NAME, short } from "@/lib/chain/config";
 import { walletLinkMessage } from "@/lib/chain/link";
 import { connectWallet, hasWallet, walletError } from "@/lib/chain/wallet";
 
-export function WalletLinkCard({ orgId, wallet, locked }: { orgId: string; wallet: string | null; locked: boolean }) {
+export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive" }: { orgId: string; wallet: string | null; locked: boolean; purpose?: "receive" | "buy" }) {
   const router = useRouter();
   const installed = useSyncExternalStore(() => () => {}, hasWallet, () => true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -38,14 +38,16 @@ export function WalletLinkCard({ orgId, wallet, locked }: { orgId: string; walle
     <section className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-white p-5">
       <Wallet className="size-6 text-brackish" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="font-medium">{wallet ? "Credits wallet" : "Link a wallet to receive credits"}</p>
+        <p className="font-medium">{wallet ? "Credits wallet" : purpose === "buy" ? "Link a wallet to buy and retire credits" : "Link a wallet to receive credits"}</p>
         {wallet ? (
           <p className="text-sm text-muted-foreground">
             <a href={addressUrl(wallet)} target="_blank" rel="noreferrer" className="tabular inline-flex items-center gap-1 font-medium text-mangrove underline-offset-4 hover:underline">{short(wallet)}<ExternalLink className="size-3.5" aria-hidden /></a>
             {" "}on {CHAIN_NAME}{locked ? ". Locked because a project is registered to it." : "."}
           </p>
         ) : (
-          <p className="text-sm text-muted-foreground">When a project is approved, its credits are recorded to this wallet on {CHAIN_NAME} (a test network, no real money). You’ll sign a message to prove it’s yours. There’s no fee.</p>
+          <p className="text-sm text-muted-foreground">
+            {purpose === "buy" ? `Credits you buy are held in this wallet on ${CHAIN_NAME} (a test network, no real money), and you retire them from it.` : `When a project is approved, its credits are recorded to this wallet on ${CHAIN_NAME} (a test network, no real money).`} You’ll sign a message to prove it’s yours. There’s no fee.
+          </p>
         )}
         <div aria-live="polite">
           {msg.error && <p className="mt-2 text-sm text-red-800">{msg.error}</p>}

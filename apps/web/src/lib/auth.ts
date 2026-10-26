@@ -37,3 +37,10 @@ export async function requireRole(role: Role) {
   if (profile.role !== role) redirect(`/${profile.role}`);
   return profile;
 }
+
+export async function requireAnyRole(...roles: Role[]) {
+  const profile = await getProfile();
+  if (!profile) redirect("/login");
+  if (!roles.includes(profile.role)) redirect(`/${profile.role}`);
+  return profile;
+}

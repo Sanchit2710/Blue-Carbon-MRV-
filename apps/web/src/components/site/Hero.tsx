@@ -18,6 +18,7 @@ export function Hero() {
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
         <Logo tone="light" />
         <nav className="flex items-center gap-1 text-[15px]">
+          <Link href="/marketplace" className="rounded-md px-3 py-2 text-white/90 hover:bg-white/10 hover:text-white">Marketplace</Link>
           <Link href="/login" className="rounded-md px-3 py-2 text-white/90 hover:bg-white/10 hover:text-white">Log in</Link>
           <Button asChild variant="secondary" className="h-10 bg-white text-mangrove hover:bg-white/90"><Link href="/signup">Create account</Link></Button>
         </nav>

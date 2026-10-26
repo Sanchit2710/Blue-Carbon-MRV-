@@ -15,7 +15,7 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 | Verifier queue, project review (start review / approve / reject / request more evidence), maintenance review + missed-deadline marking, audit log viewer | Implemented (Phase 3), SQL tested; not exercised against live Supabase |
 | Solidity contracts (BlueCarbonRegistry) | Implemented, 19 tests; deployed to Sepolia (see docs/contracts.md) |
 | NGO wallet link (signed message), verifier issuance via MetaMask with server-side receipt checks | Implemented (migration 0005); not yet exercised end to end in a browser |
-| Company wallet, transfers, retirement, marketplace | Planned (Phase 5) |
+| Marketplace contract (fixed-price listings, atomic ETH settlement), NGO listing/cancel, company purchase, holdings from on-chain balances, retirement with public certificate | Implemented (Phase 5, migration 0006, 26 contract tests); marketplace not yet deployed to Sepolia |
 | Satellite/NDVI, model-assisted review | Planned (Phase 6) |
 
 ## Security model
@@ -45,9 +45,15 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 - The server never trusts the browser: `confirmRegistration` / `confirmIssuance` fetch the receipt via `SEPOLIA_RPC_URL`, require success and the registry address, and match the emitted event (project id, batch id, quantity in hundredths, recipient) to the prepared batch before updating `credit_batches.issued_qty`.
 - On-chain project id = project UUID left-aligned in bytes32; batch id = the contract's `batchIdOf`. The derivation is unit-tested against the deployed contract.
 
+## Marketplace and retirement (Phase 5)
+- `BlueCarbonMarketplace` holds no credits: sellers approve it as operator; `buy` transfers from the seller and pays them in one transaction, so a listing can never sell more than the seller still holds (retired or moved credits make the purchase revert).
+- Listings, purchases and retirements are written only by the server with `SUPABASE_SECRET_KEY`, after it matches the transaction's event (listing id, buyer/seller = the organisation's linked wallet, quantities). There are no client insert policies on these tables.
+- Company holdings come from live `balanceOf` reads; retirement certificates (`/retirements/[id]`) are public and link to the transaction.
+- Prices are Sepolia test ETH. Purchase terms state that buying doesn't transfer site-maintenance responsibility.
+
 ## Tests
 - `cd apps/web && npm test` — boundary validation, point-in-polygon, Hamming distance.
-- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0005, then `rls_smoke.sql`, `phase2_smoke.sql`, `phase3_smoke.sql` and `phase4_smoke.sql` on a scratch Postgres.
+- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0006, then `rls_smoke.sql`, `phase2_smoke.sql`, `phase3_smoke.sql`, `phase4_smoke.sql` and `phase5_smoke.sql` on a scratch Postgres.
 
 ## Limits to keep in mind
 Blockchain records are auditable, not proof of physical restoration. A photo hash proves file consistency only. NDVI does not measure carbon. An ERC-20 is not automatically a legally recognized carbon credit.

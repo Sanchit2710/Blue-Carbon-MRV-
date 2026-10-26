@@ -31,7 +31,7 @@ async function ApprovedProjects() {
       {data.map((p) => (
         <li key={p.id} className="grid grid-cols-1 gap-1 py-5 sm:grid-cols-[1fr_auto] sm:items-baseline">
           <div>
-            <p className="font-display text-xl font-semibold text-mangrove">{p.name}</p>
+            <Link href={`/projects/${p.id}`} className="font-display text-xl font-semibold text-mangrove underline-offset-4 hover:underline">{p.name}</Link>
             <p className="text-muted-foreground">{ecosystemName[p.ecosystem] ?? p.ecosystem} in {p.region}</p>
           </div>
           <p className="tabular text-muted-foreground sm:text-right">
