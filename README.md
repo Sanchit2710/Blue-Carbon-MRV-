@@ -41,6 +41,6 @@ Active code: `apps/web` (Next.js 16), `supabase/` (schema, seed, tests), `docs/`
 cd apps/web && cp .env.example .env.local   # fill Supabase URL + anon key
 npm install && npm run dev
 ```
-Apply `supabase/migrations/0001_schema.sql` (Supabase SQL editor or `supabase db push`). Optional demo data: `supabase/seed.sql` (flagged `is_demo`).
+Apply `supabase/migrations/*.sql` in order (see `docs/supabase-setup.md` for the full end-to-end test walkthrough). Contracts: `cd contracts && npx hardhat test` (see `docs/contracts.md`). Optional demo data: `supabase/seed.sql` (flagged `is_demo`).
 Promote a verifier: `update profiles set role = 'admin' where id = '<user uuid>';`
 See `docs/architecture.md` for what is implemented vs planned. The stack list above describes the original proposal; the current plan is Next.js + Supabase + Hardhat.
