@@ -1,11 +1,16 @@
 import { notFound } from "next/navigation";
 import { ActionForm, fieldClass } from "@/components/ActionForm";
+import { EvidenceCapture } from "@/components/EvidenceCapture";
 import { EvidenceTable } from "@/components/EvidenceTable";
 import { RoleShell } from "@/components/RoleShell";
 import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
+import { signEvidence } from "@/lib/evidence/sign";
 import { createClient } from "@/lib/supabase/server";
-import { submitMaintenance, submitProject, uploadEvidence } from "../../actions";
+import { submitMaintenance, submitProject } from "../../actions";
+
+const ecosystemName: Record<string, string> = { mangrove: "Mangrove", seagrass: "Seagrass", salt_marsh: "Salt marsh", other: "Other coastal wetland" };
+const decisionStatus = (d: string) => (d === "approve" ? "approved" : d === "reject" ? "rejected" : "requires_more_evidence");
 
 export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[id]">) {
   const { id } = await params;
@@ -15,66 +20,77 @@ export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[
   if (!project) notFound();
 
   const [{ data: evidence }, { data: decisions }, { data: maintenance }] = await Promise.all([
-    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, gps_lat, gps_lng, captured_at, flags, created_at").eq("project_id", id).order("created_at", { ascending: false }),
+    supabase.from("evidence_files").select("id, kind, sha256, mime_type, size_bytes, storage_path, width, height, gps_lat, gps_lng, device_lat, device_lng, device_accuracy_m, captured_at, flags, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("verification_decisions").select("id, decision, reason, created_at").eq("project_id", id).order("created_at", { ascending: false }),
     supabase.from("maintenance_reports").select("id, due_date, status, notes, review_notes").eq("project_id", id).order("due_date"),
   ]);
+  const rows = await signEvidence(supabase, evidence ?? []);
   const editable = project.status === "draft" || project.status === "requires_more_evidence";
 
   return (
-    <RoleShell title={project.name} who={p.email}>
-      <div className="space-y-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="mb-2 flex items-center gap-3"><StatusBadge status={project.status} />
-            <span className="text-sm text-slate-600 capitalize">{project.ecosystem.replace("_", " ")} · {project.region} · {project.area_hectares} ha</span></div>
-          <p className="text-sm text-slate-700">{project.description}</p>
-          <p className="mt-2 text-xs text-slate-500">Planted {project.planting_date} · Stewardship {project.stewardship_start} → {project.stewardship_end} · Responsible: {project.stewardship_responsible}</p>
+    <RoleShell title={project.name} who={p.email} role={p.role}>
+      <div className="space-y-12">
+        <section className="flex flex-wrap items-start justify-between gap-6 rounded-xl border border-border bg-white p-6">
+          <div className="max-w-[60ch] space-y-3">
+            <StatusBadge status={project.status} />
+            {project.description && <p className="text-[17px] leading-relaxed">{project.description}</p>}
+          </div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+            <dt className="text-muted-foreground">Ecosystem</dt><dd>{ecosystemName[project.ecosystem]}</dd>
+            <dt className="text-muted-foreground">Location</dt><dd>{project.region}</dd>
+            <dt className="text-muted-foreground">Area</dt><dd className="tabular">{project.area_hectares} ha</dd>
+            <dt className="text-muted-foreground">Planted</dt><dd className="tabular">{project.planting_date}</dd>
+            <dt className="text-muted-foreground">Stewardship</dt><dd className="tabular">{project.stewardship_start} to {project.stewardship_end}</dd>
+            <dt className="text-muted-foreground">Responsible</dt><dd>{project.stewardship_responsible}</dd>
+          </dl>
         </section>
 
         {!!decisions?.length && (
           <section>
-            <h2 className="mb-2 text-lg font-semibold">Verifier feedback</h2>
-            <ul className="space-y-2">{decisions.map((d) => (
-              <li key={d.id} className="rounded border border-slate-200 bg-white p-3 text-sm"><StatusBadge status={d.decision === "approve" ? "approved" : d.decision === "reject" ? "rejected" : "requires_more_evidence"} /> {d.reason}</li>
+            <h2 className="mb-4 text-2xl font-semibold text-mangrove">Verifier feedback</h2>
+            <ul className="space-y-3">{decisions.map((d) => (
+              <li key={d.id} className="rounded-xl border border-border bg-white p-5">
+                <div className="flex items-center gap-3"><StatusBadge status={decisionStatus(d.decision)} /><span className="tabular text-sm text-muted-foreground">{new Date(d.created_at).toISOString().slice(0, 10)}</span></div>
+                <p className="mt-2">{d.reason}</p>
+              </li>
             ))}</ul>
           </section>
         )}
 
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Evidence</h2>
-          <p className="mb-3 text-xs text-slate-500">Hashes prove file consistency only, not that a photo shows a genuine restoration site. GPS/EXIF can be missing or altered; flags are hints for the verifier, not verdicts. Storage is Supabase private storage — IPFS is not integrated.</p>
-          <EvidenceTable rows={evidence ?? []} />
-          <ActionForm action={uploadEvidence} submitLabel="Upload evidence" className="mt-4 max-w-lg space-y-3">
-            <input type="hidden" name="project_id" value={id} />
-            <input name="file" type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" className={fieldClass} />
-            <p className="text-xs text-slate-500">Photos (JPEG/PNG/WebP) or PDF documents, max 10 MB. Use original files with GPS enabled — screenshots and re-exports strip EXIF.</p>
-          </ActionForm>
+        <section className="space-y-5">
+          <h2 className="text-2xl font-semibold text-mangrove">Evidence</h2>
+          <EvidenceCapture projectId={id} />
+          <EvidenceTable rows={rows} />
+          <p className="max-w-[70ch] text-sm text-muted-foreground">A fingerprint (SHA-256) proves a file hasn’t changed since upload, not that it shows this site. Photo and phone locations can be missing or altered, so flags are hints for the verifier. Files are stored privately in Supabase; IPFS isn’t connected yet.</p>
         </section>
 
         {editable && (
-          <section>
-            <ActionForm action={submitProject} submitLabel="Submit for verification" className="space-y-2">
+          <section className="rounded-xl border border-border bg-white p-6">
+            <h2 className="text-xl font-semibold text-mangrove">Ready for review?</h2>
+            <ActionForm action={submitProject} submitLabel="Submit for verification" pendingLabel="Submitting…" className="mt-2 space-y-4">
               <input type="hidden" name="project_id" value={id} />
-              <p className="text-sm text-slate-600">Submitting locks project details until the verifier responds. Submission does not issue any credits.</p>
+              <p className="max-w-[60ch] text-muted-foreground">Submitting locks the project details until the verifier responds. It doesn’t issue any credits.</p>
             </ActionForm>
           </section>
         )}
 
         <section>
-          <h2 className="mb-2 text-lg font-semibold">Maintenance reports</h2>
-          {!maintenance?.length ? <p className="text-sm text-slate-600">The ten-year monitoring schedule is created when a verifier approves the project.</p> : (
-            <ul className="space-y-3">{maintenance.map((m) => (
-              <li key={m.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="flex items-center gap-3 text-sm"><span className="font-medium">Due {m.due_date}</span><StatusBadge status={m.status} /></div>
-                {m.notes && <p className="mt-2 text-sm text-slate-700">{m.notes}</p>}
-                {m.review_notes && <p className="mt-1 text-sm text-slate-500">Verifier: {m.review_notes}</p>}
+          <h2 className="mb-4 text-2xl font-semibold text-mangrove">Monitoring reports</h2>
+          {!maintenance?.length ? <p className="text-muted-foreground">Your ten-year monitoring schedule appears here once a verifier approves the project.</p> : (
+            <ol className="space-y-3">{maintenance.map((m, i) => (
+              <li key={m.id} className="rounded-xl border border-border bg-white p-5">
+                <div className="flex flex-wrap items-center gap-3"><span className="font-medium">Year {i + 1}</span><span className="tabular text-sm text-muted-foreground">due {m.due_date}</span><StatusBadge status={m.status} /></div>
+                {m.notes && <p className="mt-2">{m.notes}</p>}
+                {m.review_notes && <p className="mt-1 text-muted-foreground">Verifier: {m.review_notes}</p>}
                 {(m.status === "scheduled" || m.status === "missed") && (
-                  <ActionForm action={submitMaintenance} submitLabel="Submit report" className="mt-3 space-y-2">
+                  <ActionForm action={submitMaintenance} submitLabel="Submit report" pendingLabel="Submitting…" className="mt-4 space-y-3">
                     <input type="hidden" name="report_id" value={m.id} /><input type="hidden" name="project_id" value={id} />
-                    <textarea name="notes" rows={3} required minLength={10} placeholder="Survival rate, damage, interventions…" className={fieldClass} />
+                    <label className="block space-y-2 text-sm font-medium">Site condition
+                      <textarea name="notes" rows={3} required minLength={10} placeholder="Survival rate, storm or grazing damage, replanting done…" className={fieldClass} />
+                    </label>
                   </ActionForm>
                 )}
-              </li>))}</ul>
+              </li>))}</ol>
           )}
         </section>
       </div>

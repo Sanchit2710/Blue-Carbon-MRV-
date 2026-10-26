@@ -15,13 +15,13 @@ export function BoundaryMap({ polygon, points }: { polygon: Polygon; points: Map
   const y = (lat: number) => pad + (maxLat - lat) * scale;
   return (
     <figure>
-      <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-label="Project boundary and photo locations" className="w-full max-w-md rounded border border-slate-200 bg-sky-50">
+      <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-label="Project boundary and photo locations" className="w-full max-w-md rounded-xl border border-border bg-[#e4eef0]">
         {polygon.coordinates.map((r, i) => (
           <polygon key={i} points={r.map(([lng, lat]) => `${x(lng)},${y(lat)}`).join(" ")} fill={i === 0 ? "rgba(5,100,70,0.18)" : "white"} stroke="#065f46" strokeWidth="2" />
         ))}
         {points.map((p, i) => <circle key={i} cx={x(p.lng)} cy={y(p.lat)} r="5" fill={p.flagged ? "#b91c1c" : "#0f766e"} stroke="white" strokeWidth="1.5" />)}
       </svg>
-      <figcaption className="mt-1 text-xs text-slate-500">Schematic, no basemap. Teal = photo GPS inside boundary, red = outside. {points.length} geotagged photo(s) plotted.</figcaption>
+      <figcaption className="mt-2 text-sm text-muted-foreground">Schematic drawing, no map underneath. Teal dots are inside the boundary, red dots outside. {points.length} geotagged photo(s) plotted.</figcaption>
     </figure>
   );
 }

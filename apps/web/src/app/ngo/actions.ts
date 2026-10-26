@@ -6,11 +6,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { FormState } from "@/app/(auth)/actions";
-import { parseBoundary, pointInPolygon } from "@/lib/evidence/geo";
+import { distanceM, parseBoundary, pointInPolygon } from "@/lib/evidence/geo";
+import { flagLabel } from "@/lib/evidence/flags";
 import { dHash, sha256 } from "@/lib/evidence/hash";
 import { createClient } from "@/lib/supabase/server";
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 25 * 1024 * 1024; // originals are kept untouched; no recompression
+const MIN_LONG_EDGE = 1600; // below this a "photo" is usually a screenshot or a re-compressed copy
+const GPS_MISMATCH_M = 250;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 async function currentUser() {
@@ -81,7 +84,15 @@ export async function uploadEvidence(_: FormState, form: FormData): Promise<Form
   const file = form.get("file");
   if (!projectId.success) return { error: "Invalid project" };
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a file" };
-  if (file.size > MAX_BYTES) return { error: "File exceeds 10 MB" };
+  if (file.size > MAX_BYTES) return { error: "File is larger than 25 MB. Upload the original photo, not a video or a burst." };
+
+  // Browser geolocation at capture time (optional, client-supplied, so treated as a hint like EXIF).
+  const device = z.object({
+    device_lat: z.coerce.number().min(-90).max(90),
+    device_lng: z.coerce.number().min(-180).max(180),
+    device_accuracy_m: z.coerce.number().min(0).max(100_000),
+  }).safeParse({ device_lat: blank(form.get("device_lat")), device_lng: blank(form.get("device_lng")), device_accuracy_m: blank(form.get("device_accuracy_m")) });
+  const dev = device.success ? device.data : null;
 
   const { supabase, user } = await currentUser();
   if (!user) redirect("/login");
@@ -95,10 +106,13 @@ export async function uploadEvidence(_: FormState, form: FormData): Promise<Form
   const isPdf = buf.subarray(0, 5).toString() === "%PDF-";
   let kind: "photo" | "document" = "document";
   let mime = "application/pdf";
+  let width: number | null = null, height: number | null = null;
   if (!isPdf) {
     try {
       const meta = await sharp(buf).metadata();
       mime = `image/${meta.format}`;
+      width = meta.autoOrient?.width ?? meta.width ?? null;
+      height = meta.autoOrient?.height ?? meta.height ?? null;
     } catch { return { error: "Unsupported file: upload a JPEG, PNG, WebP or PDF" }; }
     if (!IMAGE_TYPES.includes(mime)) return { error: "Unsupported image type: use JPEG, PNG or WebP" };
     kind = "photo";
@@ -122,7 +136,12 @@ export async function uploadEvidence(_: FormState, form: FormData): Promise<Form
     exifSummary = exif ? { make: exif.Make, model: exif.Model, software: exif.Software } : null;
 
     if (lat === null) flags.push("missing_gps");
-    else if (boundary?.ok && !pointInPolygon(lng!, lat, boundary.polygon)) flags.push("outside_boundary");
+    if (lat === null && dev) flags.push("location_from_device");
+    if (lat !== null && dev && distanceM(lat, lng!, dev.device_lat, dev.device_lng) > GPS_MISMATCH_M + dev.device_accuracy_m) flags.push("device_gps_mismatch");
+    // Boundary check uses photo GPS, else the phone's location.
+    const [checkLat, checkLng] = lat !== null ? [lat, lng!] : dev ? [dev.device_lat, dev.device_lng] : [null, null];
+    if (checkLat !== null && boundary?.ok && !pointInPolygon(checkLng!, checkLat, boundary.polygon)) flags.push("outside_boundary");
+    if (width && height && Math.max(width, height) < MIN_LONG_EDGE) flags.push("low_resolution");
     if (!capturedAt) flags.push("missing_capture_time");
     else if (+capturedAt > Date.now() + 864e5 || capturedAt.getUTCFullYear() < 2000) flags.push("capture_time_implausible");
     else if (project.planting_date && capturedAt < new Date(project.planting_date)) flags.push("captured_before_planting");
@@ -140,7 +159,8 @@ export async function uploadEvidence(_: FormState, form: FormData): Promise<Form
   const { error } = await supabase.from("evidence_files").insert({
     project_id: project.id, uploaded_by: user.id, kind, storage_path: path, sha256: hash, perceptual_hash: phash,
     mime_type: mime, size_bytes: buf.length, exif: exifSummary, gps_lat: lat, gps_lng: lng,
-    captured_at: capturedAt?.toISOString() ?? null, flags,
+    captured_at: capturedAt?.toISOString() ?? null, flags, width, height,
+    device_lat: dev?.device_lat ?? null, device_lng: dev?.device_lng ?? null, device_accuracy_m: dev?.device_accuracy_m ?? null,
   });
   if (error) {
     await supabase.storage.from("evidence").remove([path]);
@@ -148,7 +168,7 @@ export async function uploadEvidence(_: FormState, form: FormData): Promise<Form
   }
   await supabase.rpc("log_audit", { p_action: "evidence.upload", p_entity: "project", p_entity_id: project.id, p_detail: { sha256: hash, flags } });
   revalidatePath(`/ngo/projects/${project.id}`);
-  return { notice: `Stored. SHA-256 ${hash.slice(0, 12)}…\n${flags.length ? "Flags for verifier: " + flags.join(", ") : "No automatic flags."}` };
+  return { notice: flags.length ? `Saved at full quality. The verifier will see: ${flags.map(flagLabel).join("; ")}.` : "Saved at full quality. No automatic flags." };
 }
 
 // ───────── submit for review ─────────

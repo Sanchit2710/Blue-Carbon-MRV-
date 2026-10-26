@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { AdminNav } from "@/components/AdminNav";
+import { ProjectRow } from "@/components/ProjectRow";
 import { RoleShell } from "@/components/RoleShell";
-import { StatusBadge } from "@/components/StatusBadge";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,23 +12,15 @@ export default async function AdminPage() {
     .in("status", ["submitted", "under_review"])
     .order("updated_at");
   return (
-    <RoleShell title="Verifier dashboard" who={p.email}>
-      <AdminNav />
-      <h2 className="mb-3 text-lg font-semibold">Review queue ({queue?.length ?? 0})</h2>
-      {!queue?.length ? <p className="text-sm text-slate-600">Nothing awaiting review.</p> : (
-        <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
-          {queue.map((q) => (
-            <li key={q.id}>
-              <Link href={`/admin/projects/${q.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-stone-50">
-                <span><span className="font-medium">{q.name}</span>
-                  <span className="text-sm text-slate-500 capitalize"> · {(q.organizations as unknown as { name: string } | null)?.name} · {q.ecosystem.replace("_", " ")} · {q.region} · {q.area_hectares} ha</span></span>
-                <StatusBadge status={q.status} />
-              </Link>
-            </li>
-          ))}
+    <RoleShell title="Review queue" who={p.email} role={p.role}>
+      <p className="-mt-4 mb-8 text-lg text-muted-foreground">{queue?.length ? `${queue.length} project${queue.length === 1 ? "" : "s"} waiting, oldest first.` : "Nothing is waiting for review."}</p>
+      {!!queue?.length && (
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white">
+          {queue.map((q) => <ProjectRow key={q.id} href={`/admin/projects/${q.id}`} name={q.name} ecosystem={q.ecosystem} region={q.region}
+            extra={`${(q.organizations as unknown as { name: string } | null)?.name ?? "unknown organisation"}`} status={q.status} />)}
         </ul>
       )}
-      <p className="mt-6 text-sm text-slate-500">Credit issuance, transfer and retirement history appear here once Phase 4–5 is integrated.</p>
+      <p className="mt-8 text-sm text-muted-foreground">Credit issuance, transfer and retirement history will appear here once the ledger is connected.</p>
     </RoleShell>
   );
 }

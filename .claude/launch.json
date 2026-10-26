@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "web-preview", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "apps/web", "run", "dev", "--", "-p", "3005"], "port": 3005 }
+  ]
+}

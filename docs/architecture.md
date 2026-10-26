@@ -9,7 +9,9 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 | Supabase auth (email/password), profiles, role clamping | Implemented (Phase 1) |
 | DB schema + RLS (`supabase/migrations/0001_schema.sql`) | Implemented, smoke-tested locally |
 | NGO org + project registration, evidence upload (SHA-256, EXIF GPS/time, boundary check, dHash similarity, exact-duplicate flag), maintenance report submission | Implemented (Phase 2), SQL + unit tested; not exercised against live Supabase |
-| Evidence storage | Supabase private bucket `evidence`. IPFS NOT integrated |
+| Evidence storage | Supabase private bucket `evidence`, originals up to 25 MB. IPFS NOT integrated |
+| In-app camera capture with phone GPS, full-quality originals, download original, resolution checks | Implemented (see docs/ui-and-field-features.md); migration 0004 |
+| UI redesign: shadcn/ui, landing hero, split-screen auth, sidebar dashboards | Implemented |
 | Verifier queue, project review (start review / approve / reject / request more evidence), maintenance review + missed-deadline marking, audit log viewer | Implemented (Phase 3), SQL tested; not exercised against live Supabase |
 | Solidity contracts | Planned (Phase 4) |
 | Wallet, marketplace purchases, retirement | Planned (Phase 5) |
@@ -38,7 +40,7 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 
 ## Tests
 - `cd apps/web && npm test` — boundary validation, point-in-polygon, Hamming distance.
-- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0003, then `rls_smoke.sql`, `phase2_smoke.sql` and `phase3_smoke.sql` on a scratch Postgres.
+- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0004, then `rls_smoke.sql`, `phase2_smoke.sql` and `phase3_smoke.sql` on a scratch Postgres.
 
 ## Limits to keep in mind
 Blockchain records are auditable, not proof of physical restoration. A photo hash proves file consistency only. NDVI does not measure carbon. An ERC-20 is not automatically a legally recognized carbon credit.
