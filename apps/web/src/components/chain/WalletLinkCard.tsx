@@ -9,7 +9,7 @@ import { addressUrl, CHAIN_NAME, short } from "@/lib/chain/config";
 import { walletLinkMessage } from "@/lib/chain/link";
 import { connectWallet, hasWallet, walletError } from "@/lib/chain/wallet";
 
-export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive" }: { orgId: string; wallet: string | null; locked: boolean; purpose?: "receive" | "buy" }) {
+export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive", demo = false }: { orgId: string; wallet: string | null; locked: boolean; purpose?: "receive" | "buy"; demo?: boolean }) {
   const router = useRouter();
   const installed = useSyncExternalStore(() => () => {}, hasWallet, () => true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -33,6 +33,16 @@ export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive" }: {
       setBusy(null);
     }
   }
+
+  if (demo) return (
+    <section className="flex flex-wrap items-center gap-4 rounded-xl border border-amber-200 bg-amber-50/60 p-5">
+      <Wallet className="size-6 text-amber-800" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">Demo wallet</p>
+        <p className="text-sm text-muted-foreground">This demonstration organisation has a placeholder address ({wallet ? short(wallet) : "none"}). Its credits and trades are simulated and never touch {CHAIN_NAME}.</p>
+      </div>
+    </section>
+  );
 
   return (
     <section className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-white p-5">

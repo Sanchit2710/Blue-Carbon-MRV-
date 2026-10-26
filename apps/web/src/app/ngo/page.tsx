@@ -60,7 +60,7 @@ export default async function NgoPage() {
   return (
     <Page title={p.org.name} lead={p.org.region ?? undefined}
       actions={<Button asChild><Link href="/ngo/projects/new"><Plus className="size-5" aria-hidden />Register a project</Link></Button>}>
-      {hasChain && <div className="mb-10"><WalletLinkCard orgId={p.org.id} wallet={p.org.wallet_address} locked={list.some((x) => x.onchain_owner)} /></div>}
+      {hasChain && <div className="mb-10"><WalletLinkCard orgId={p.org.id} wallet={p.org.wallet_address} locked={list.some((x) => x.onchain_owner)} demo={p.org.is_demo} /></div>}
       {!list.length ? (
         <div className="rounded-xl border border-dashed border-border bg-white/60 p-8">
           <p className="text-lg font-medium text-mangrove">Register your first restoration site.</p>
@@ -100,7 +100,7 @@ export default async function NgoPage() {
               {list.map((pr) => <ProjectRow key={pr.id} href={`/ngo/projects/${pr.id}`} name={pr.name} ecosystem={pr.ecosystem} region={pr.region} extra={`${pr.area_hectares} ha`} status={pr.status} />)}
             </ul>
           </section>
-          <p className="text-sm text-muted-foreground">Credits, sales and payouts will show here once credit issuance is switched on.</p>
+          <p className="text-sm text-muted-foreground">Issued credits, listings and sales are on each approved project’s page.</p>
         </div>
       )}
     </Page>
