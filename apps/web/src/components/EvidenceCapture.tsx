@@ -2,7 +2,7 @@
 
 import { Camera, FileText, ImageUp, Loader2, MapPin, MapPinOff, RotateCcw } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import type { FormState } from "@/app/(auth)/actions";
 import { uploadEvidence } from "@/app/ngo/actions";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ export function EvidenceCapture({ projectId }: { projectId: string }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [loc, setLoc] = useState<Loc>({ status: "idle" });
+  const [dragging, setDragging] = useState(false);
+  // Only touch devices get "Take photo": laptop browsers ignore the camera hint and open a file picker anyway.
+  const touch = useSyncExternalStore(() => () => {}, () => matchMedia("(pointer: coarse)").matches, () => false);
 
   const clear = () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -49,7 +52,22 @@ export function EvidenceCapture({ projectId }: { projectId: string }) {
 
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (!f) return;
+    if (f) select(f);
+  }
+
+  // Laptop: drop a file onto the panel. It is placed into the real file input so the form submits it unchanged.
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (!f || !input.current || pending) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.current.files = dt.files;
+    select(f);
+  }
+
+  function select(f: File) {
     if (preview) URL.revokeObjectURL(preview);
     setFile(f); setDims(null);
     if (f.type.startsWith("image/")) {
@@ -66,7 +84,11 @@ export function EvidenceCapture({ projectId }: { projectId: string }) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <form action={formAction} className="rounded-xl border border-border bg-white p-5 sm:p-6">
+      <form action={formAction}
+        onDragOver={(e) => { e.preventDefault(); if (!file) setDragging(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+        onDrop={onDrop}
+        className={`rounded-xl border bg-white p-5 transition-colors sm:p-6 ${dragging ? "border-2 border-dashed border-brackish bg-accent" : "border-border"}`}>
         <input type="hidden" name="project_id" value={projectId} />
         <input ref={input} type="file" name="file" accept="image/*,application/pdf" onChange={onChange} className="sr-only" tabIndex={-1} aria-hidden />
         {loc.status === "ok" && (<>
@@ -79,10 +101,13 @@ export function EvidenceCapture({ projectId }: { projectId: string }) {
           {!file ? (
             <motion.div key="pick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
               <h3 className="text-lg font-semibold text-mangrove">Add field evidence</h3>
-              <p className="mt-1 max-w-[60ch] text-muted-foreground">Take the photo here so it keeps its full quality, time and location. Originals up to 25 MB are saved exactly as taken.</p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <Button type="button" size="lg" onClick={() => pick(true)}><Camera className="size-5" aria-hidden />Take photo</Button>
-                <Button type="button" size="lg" variant="outline" onClick={() => pick(false)}><ImageUp className="size-5" aria-hidden />Choose photo or PDF</Button>
+              <p className="mt-1 max-w-[60ch] text-muted-foreground">
+                {touch ? "Take the photo here so it keeps its full quality, time and location." : "Use the original photo from the camera (AirDrop or cable keeps its location; WhatsApp and screenshots strip it)."} Originals up to 25 MB are saved exactly as taken.
+              </p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                {touch && <Button type="button" size="lg" onClick={() => pick(true)}><Camera className="size-5" aria-hidden />Take photo</Button>}
+                <Button type="button" size="lg" variant={touch ? "outline" : "default"} onClick={() => pick(false)}><ImageUp className="size-5" aria-hidden />Choose photo or PDF</Button>
+                {!touch && <span className="text-muted-foreground">or drop a file here</span>}
               </div>
             </motion.div>
           ) : (
