@@ -3,6 +3,8 @@ import { AlertCircle, CalendarClock, FilePen, Plus } from "lucide-react";
 import { ActionForm, fieldClass, labelClass } from "@/components/ActionForm";
 import { LinkPending } from "@/components/LinkPending";
 import { ProjectRow } from "@/components/ProjectRow";
+import { WalletLinkCard } from "@/components/chain/WalletLinkCard";
+import { hasChain } from "@/lib/chain/config";
 import { Page } from "@/components/RoleShell";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
@@ -35,7 +37,7 @@ export default async function NgoPage() {
 
   const supabase = await createClient();
   const [{ data: projects }, { data: due }] = await Promise.all([
-    supabase.from("projects").select("id, name, status, ecosystem, region, area_hectares").eq("organization_id", p.org.id).order("updated_at", { ascending: false }),
+    supabase.from("projects").select("id, name, status, ecosystem, region, area_hectares, onchain_owner").eq("organization_id", p.org.id).order("updated_at", { ascending: false }),
     supabase.from("maintenance_reports").select("id, due_date, status, project_id, projects(name)").in("status", ["scheduled", "missed"]).lte("due_date", dueBy()).order("due_date"),
   ]);
   const list = projects ?? [];
@@ -58,6 +60,7 @@ export default async function NgoPage() {
   return (
     <Page title={p.org.name} lead={p.org.region ?? undefined}
       actions={<Button asChild><Link href="/ngo/projects/new"><Plus className="size-5" aria-hidden />Register a project</Link></Button>}>
+      {hasChain && <div className="mb-10"><WalletLinkCard orgId={p.org.id} wallet={p.org.wallet_address} locked={list.some((x) => x.onchain_owner)} /></div>}
       {!list.length ? (
         <div className="rounded-xl border border-dashed border-border bg-white/60 p-8">
           <p className="text-lg font-medium text-mangrove">Register your first restoration site.</p>

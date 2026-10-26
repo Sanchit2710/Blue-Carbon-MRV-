@@ -13,8 +13,9 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 | In-app camera capture with phone GPS, full-quality originals, download original, resolution checks | Implemented (see docs/ui-and-field-features.md); migration 0004 |
 | UI redesign: shadcn/ui, landing hero, split-screen auth, sidebar dashboards | Implemented |
 | Verifier queue, project review (start review / approve / reject / request more evidence), maintenance review + missed-deadline marking, audit log viewer | Implemented (Phase 3), SQL tested; not exercised against live Supabase |
-| Solidity contracts | Planned (Phase 4) |
-| Wallet, marketplace purchases, retirement | Planned (Phase 5) |
+| Solidity contracts (BlueCarbonRegistry) | Implemented, 19 tests; deployed to Sepolia (see docs/contracts.md) |
+| NGO wallet link (signed message), verifier issuance via MetaMask with server-side receipt checks | Implemented (migration 0005); not yet exercised end to end in a browser |
+| Company wallet, transfers, retirement, marketplace | Planned (Phase 5) |
 | Satellite/NDVI, model-assisted review | Planned (Phase 6) |
 
 ## Security model
@@ -38,9 +39,15 @@ Hybrid: PostgreSQL (Supabase) for application data, private object storage for e
 - Approval does not issue or quantify credits. `verification_reports` (geofence/satellite/model snapshots) is still unused; the review page computes check counts live from evidence flags.
 - Boundary view is a schematic SVG (no basemap). Evidence files open through 5-minute signed URLs.
 
+## On-chain issuance (Phase 4b)
+- NGOs link a wallet by signing a message (`walletLinkMessage`); the server verifies the signature, then stores it on the organisation. The wallet locks once a project is registered on-chain.
+- The verifier's own MetaMask signs `registerProject` and `issueBatch`. The verifier wallet must hold `VERIFIER_ROLE` on the contract; the app checks this before asking for a signature.
+- The server never trusts the browser: `confirmRegistration` / `confirmIssuance` fetch the receipt via `SEPOLIA_RPC_URL`, require success and the registry address, and match the emitted event (project id, batch id, quantity in hundredths, recipient) to the prepared batch before updating `credit_batches.issued_qty`.
+- On-chain project id = project UUID left-aligned in bytes32; batch id = the contract's `batchIdOf`. The derivation is unit-tested against the deployed contract.
+
 ## Tests
 - `cd apps/web && npm test` — boundary validation, point-in-polygon, Hamming distance.
-- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0004, then `rls_smoke.sql`, `phase2_smoke.sql` and `phase3_smoke.sql` on a scratch Postgres.
+- SQL: load `supabase/tests/stubs.sql`, then migrations 0001-0005, then `rls_smoke.sql`, `phase2_smoke.sql`, `phase3_smoke.sql` and `phase4_smoke.sql` on a scratch Postgres.
 
 ## Limits to keep in mind
 Blockchain records are auditable, not proof of physical restoration. A photo hash proves file consistency only. NDVI does not measure carbon. An ERC-20 is not automatically a legally recognized carbon credit.
