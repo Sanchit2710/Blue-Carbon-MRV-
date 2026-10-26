@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export type Role = "ngo" | "company" | "admin";
 
 export async function getProfile() {
+  await connection(); // session checks read the clock; keep this out of prerendering
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
