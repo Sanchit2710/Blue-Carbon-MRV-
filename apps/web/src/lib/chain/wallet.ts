@@ -10,9 +10,11 @@ declare global {
 export const hasWallet = () => typeof window !== "undefined" && !!window.ethereum;
 
 // Connects MetaMask and makes sure it is on the right network (adds Sepolia if missing).
-export async function connectWallet() {
+// pickAccount: open MetaMask's account picker, so the person chooses which account this site uses.
+export async function connectWallet({ pickAccount = false } = {}) {
   const eth = window.ethereum;
   if (!eth) throw new Error("MetaMask isn’t installed in this browser.");
+  if (pickAccount) await eth.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
   await eth.request({ method: "eth_requestAccounts" });
   const current = (await eth.request({ method: "eth_chainId" })) as string;
   if (current.toLowerCase() !== CHAIN_ID_HEX) {

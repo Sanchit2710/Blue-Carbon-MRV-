@@ -18,9 +18,9 @@ export function WalletLinkCard({ orgId, wallet, locked, purpose = "receive", dem
   async function link() {
     setMsg({});
     try {
-      setBusy("Connecting to MetaMask…");
-      const { signer, address } = await connectWallet();
-      setBusy("Confirm the signature in MetaMask…");
+      setBusy("Choose the account in MetaMask…");
+      const { signer, address } = await connectWallet({ pickAccount: true });
+      setBusy(`Sign with ${short(address)} in MetaMask…`);
       const issuedAt = new Date().toISOString();
       const signature = await signer.signMessage(walletLinkMessage(address, orgId, issuedAt));
       setBusy("Verifying…");
