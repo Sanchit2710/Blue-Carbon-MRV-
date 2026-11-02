@@ -11,10 +11,10 @@ import { marketAbi, registryAbi } from "@/lib/chain/abi";
 import { MARKETPLACE_ADDRESS, REGISTRY_ADDRESS, short } from "@/lib/chain/config";
 import { toHundredths } from "@/lib/chain/ids";
 import { pricePerUnitWei } from "@/lib/chain/units";
-import { connectWallet, walletError } from "@/lib/chain/wallet";
+import { connectAs, walletError } from "@/lib/chain/wallet";
 
 async function orgSigner(wallet: string) {
-  const { signer, address } = await connectWallet();
+  const { signer, address } = await connectAs((a) => a.toLowerCase() === wallet.toLowerCase());
   if (address.toLowerCase() !== wallet.toLowerCase()) throw new Error(`Switch MetaMask to your organisation’s wallet ${short(wallet)}.`);
   return signer;
 }

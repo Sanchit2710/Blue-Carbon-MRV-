@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { marketAbi } from "@/lib/chain/abi";
 import { CHAIN_NAME, MARKETPLACE_ADDRESS, short } from "@/lib/chain/config";
 import { toHundredths } from "@/lib/chain/ids";
-import { connectWallet, walletError } from "@/lib/chain/wallet";
+import { connectAs, walletError } from "@/lib/chain/wallet";
 
 type Viewer = { kind: "guest" } | { kind: "other-role" } | { kind: "company"; wallet: string | null };
 
@@ -46,7 +46,7 @@ export function BuyCredits({ listingId, onchainListingId, available, priceWeiPer
     }
     try {
       setBusy("Connecting to MetaMask…");
-      const { signer, address } = await connectWallet();
+      const { signer, address } = await connectAs((a) => a.toLowerCase() === (viewer as { wallet: string }).wallet.toLowerCase());
       if (address.toLowerCase() !== (viewer as { wallet: string }).wallet.toLowerCase()) throw new Error(`Switch MetaMask to your company wallet ${short((viewer as { wallet: string }).wallet)}.`);
       setBusy("Confirm the payment in MetaMask…");
       const tx = await new Contract(MARKETPLACE_ADDRESS, marketAbi, signer).buy(onchainListingId, toHundredths(n), { value: total! });

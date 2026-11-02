@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { registryAbi } from "@/lib/chain/abi";
 import { REGISTRY_ADDRESS, short } from "@/lib/chain/config";
 import { toHundredths } from "@/lib/chain/ids";
-import { connectWallet, walletError } from "@/lib/chain/wallet";
+import { connectAs, walletError } from "@/lib/chain/wallet";
 
 // Retirement burns the credits from the company wallet permanently; the server then records it from the receipt.
 export function RetireCredits({ batchId, onchainBatchId, max, wallet, companyName, demo = false }: { batchId: string; onchainBatchId: string | null; max: number; wallet: string | null; companyName: string; demo?: boolean }) {
@@ -35,7 +35,7 @@ export function RetireCredits({ batchId, onchainBatchId, max, wallet, companyNam
     if (!wallet || !onchainBatchId) return setError("Link your company wallet first.");
     try {
       setBusy("Connecting to MetaMask…");
-      const { signer, address } = await connectWallet();
+      const { signer, address } = await connectAs((a) => a.toLowerCase() === wallet!.toLowerCase());
       if (address.toLowerCase() !== wallet!.toLowerCase()) throw new Error(`Switch MetaMask to your company wallet ${short(wallet!)}.`);
       setBusy("Confirm the retirement in MetaMask…");
       const tx = await new Contract(REGISTRY_ADDRESS, registryAbi, signer).retire(onchainBatchId!, toHundredths(qty), address, `${reason} (for ${beneficiary})`);

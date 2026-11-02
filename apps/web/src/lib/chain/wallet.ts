@@ -31,6 +31,14 @@ export async function connectWallet({ pickAccount = false } = {}) {
   return { provider, signer, address: await signer.getAddress() };
 }
 
+// Connects, and if MetaMask hands over an account that isn't the one needed (isRight is false),
+// opens MetaMask's account picker once so the person can choose the right one.
+export async function connectAs(isRight: (address: string) => boolean | Promise<boolean>) {
+  const first = await connectWallet();
+  if (await isRight(first.address)) return first;
+  return connectWallet({ pickAccount: true });
+}
+
 // Turns MetaMask / ethers errors into something a person can act on.
 export function walletError(e: unknown) {
   const err = e as { code?: number | string; shortMessage?: string; message?: string; info?: { error?: { code?: number } } };

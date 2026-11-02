@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, CircleDashed, ExternalLink, Loader2, X } from "lucide-react";
-import { Contract, ZeroAddress } from "ethers";
+import { BrowserProvider, Contract, ZeroAddress, id } from "ethers";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { abandonBatch, confirmIssuance, confirmRegistration, prepareIssuance, recordTransaction, type IssuancePlan } from "@/app/admin/chain-actions";
@@ -9,7 +9,7 @@ import { fieldClass, labelClass } from "@/components/ActionForm";
 import { Button } from "@/components/ui/button";
 import { registryAbi } from "@/lib/chain/abi";
 import { CHAIN_NAME, REGISTRY_ADDRESS, short, txUrl } from "@/lib/chain/config";
-import { connectWallet, walletError } from "@/lib/chain/wallet";
+import { connectAs, walletError } from "@/lib/chain/wallet";
 
 type StepKey = "prepare" | "wallet" | "register" | "issue" | "confirm";
 type Status = "todo" | "active" | "done" | "skipped" | "error";
@@ -49,10 +49,13 @@ export function IssueCredits({ projectId, defaultRef, defaultStart, defaultEnd }
       set("prepare", "done", `${Number(plan.quantity) / 100} tCO2e to ${short(plan.owner)}`);
 
       set("wallet", "active", "Approve in MetaMask…");
-      const { signer, address } = await connectWallet();
+      // The account must hold VERIFIER_ROLE on the contract; if MetaMask offers another, the picker opens.
+      const role = id("VERIFIER_ROLE"); // same constant as BlueCarbonRegistry.VERIFIER_ROLE
+      const isVerifier = async (a: string) => new Contract(REGISTRY_ADDRESS, registryAbi, new BrowserProvider(window.ethereum!)).hasRole(role, a);
+      const { signer, address } = await connectAs(isVerifier);
       const registry = new Contract(REGISTRY_ADDRESS, registryAbi, signer);
-      if (!(await registry.hasRole(await registry.VERIFIER_ROLE(), address))) {
-        const msg = `${short(address)} isn’t an authorised verifier on ${CHAIN_NAME}. Switch MetaMask to your verifier account.`;
+      if (!(await isVerifier(address))) {
+        const msg = `${short(address)} isn’t an authorised verifier on ${CHAIN_NAME}. In MetaMask’s account picker, choose your verifier account (0x19b2…).`;
         set("wallet", "error", msg); throw new Error(msg);
       }
       set("wallet", "done", `${short(address)} on ${CHAIN_NAME}`);
