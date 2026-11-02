@@ -15,6 +15,9 @@ import { reviewProject, startReview } from "../../actions";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Reads the session and route params per request; let navigation wait for it.
+export const instant = false;
+
 export default async function ReviewPage({ params }: PageProps<"/admin/projects/[id]">) {
   const { id } = await params;
   await requireRole("admin");

@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # Local AI/editor tooling (never committed)
 .claude/
+
+# report screenshots (local only)
+report-screenshots/

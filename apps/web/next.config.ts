@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
       // signed URLs carry ?token=…, so search is left open for this path only
       ...(supabase ? [{ protocol: "https" as const, hostname: new URL(supabase).hostname, pathname: "/storage/v1/object/sign/evidence/**" }] : []),
     ],
-    qualities: [75, 85],
+    qualities: [75, 80, 85],
   },
   partialPrefetching: true,
   turbopack: {

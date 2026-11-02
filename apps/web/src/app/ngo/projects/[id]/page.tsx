@@ -17,6 +17,9 @@ const ecosystemName: Record<string, string> = { mangrove: "Mangrove", seagrass: 
 const reportWindow = () => new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10);
 const decisionStatus = (d: string) => (d === "approve" ? "approved" : d === "reject" ? "rejected" : "requires_more_evidence");
 
+// Reads the session and route params per request; let navigation wait for it.
+export const instant = false;
+
 export default async function ProjectPage({ params }: PageProps<"/ngo/projects/[id]">) {
   const { id } = await params;
   const p = await requireRole("ngo");
